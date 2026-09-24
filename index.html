@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Interactive Black-Scholes-Merton Greeks explorer: 17 Greeks vs any input, 3D surfaces, heatmaps, multi-leg strategies.">
+<style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Black-Scholes Greeks Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+:root{
+  --bg:#f3f4f1; --panel:#ffffff; --panel-2:#f8f9f7; --ink:#15181b; --ink-2:#4f555c; --muted:#7a8088;
+  --line:#dcdfda; --grid:#e8eae6; --accent:#2a78d6; --accent-ink:#1c5cab; --accent-soft:#e3eefb;
+  --call:#2a78d6; --put:#eb6834; --mark:#15181b;
+  --ramp-c:#b7d3f6,#86b6ef,#2a78d6,#1c5cab,#0d366b; --ramp-p:#f6c2a8,#f0935f,#eb6834,#b94a1f,#7d3013;
+  --cat:#eb6834,#1baf7a,#eda100,#e87ba4,#008300,#4a3aa7,#e34948;
+  --div-lo:#1c5cab; --div-mid:#f0efec; --div-hi:#c93a3a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"STIX Two Text","Cambria Math","Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#111315; --panel:#191c1f; --panel-2:#1f2326; --ink:#eef0f2; --ink-2:#b3b9c0; --muted:#8a9199;
+    --line:#2c3136; --grid:#262a2e; --accent:#3987e5; --accent-ink:#86b6ef; --accent-soft:#1a2c44;
+    --call:#3987e5; --put:#d95926; --mark:#eef0f2;
+    --ramp-c:#184f95,#256abf,#3987e5,#6da7ec,#b7d3f6; --ramp-p:#7d3013,#b94a1f,#d95926,#ec8a5c,#f6c2a8;
+    --cat:#d95926,#199e70,#c98500,#d55181,#008300,#9085e9,#e66767;
+    --div-lo:#3987e5; --div-mid:#383835; --div-hi:#e66767;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#111315; --panel:#191c1f; --panel-2:#1f2326; --ink:#eef0f2; --ink-2:#b3b9c0; --muted:#8a9199;
+  --line:#2c3136; --grid:#262a2e; --accent:#3987e5; --accent-ink:#86b6ef; --accent-soft:#1a2c44;
+  --call:#3987e5; --put:#d95926; --mark:#eef0f2;
+  --ramp-c:#184f95,#256abf,#3987e5,#6da7ec,#b7d3f6; --ramp-p:#7d3013,#b94a1f,#d95926,#ec8a5c,#f6c2a8;
+    --cat:#d95926,#199e70,#c98500,#d55181,#008300,#9085e9,#e66767;
+  --div-lo:#3987e5; --div-mid:#383835; --div-hi:#e66767;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45}
+.wrap{max-width:1440px;margin:0 auto;padding-inline:16px;padding-block:18px 40px}
+header.top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 24px;margin-bottom:16px}
+h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 .sub{font-family:var(--math);font-style:italic;font-weight:400;color:var(--ink-2);margin-left:8px}
+.tagline{color:var(--ink-2);margin:0;font-size:13px}
+.layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+aside.ctl{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:14px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+@media (max-width:900px){aside.ctl{position:static}}
+.grp{display:flex;flex-direction:column;gap:6px}
+.lbl{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+select{font:inherit;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--panel-2)}
+.seg button{flex:1;font:inherit;font-size:13px;border:0;background:transparent;color:var(--ink-2);padding:6px 4px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff;font-weight:500}
+.sl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center}
+.sl .nm{font-family:var(--math);font-size:16px}
+.sl .nm small{font-family:var(--sans);font-size:11.5px;color:var(--muted);margin-left:6px}
+.sl output{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.sl input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--accent);margin:0}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:6px;padding:6px 10px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink-2);cursor:pointer}
+.chk input{accent-color:var(--accent)}
+.dvd{height:1px;background:var(--line);margin:0 -14px}
+main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px -14px 10px;padding:0 10px;overflow-x:auto}
+.tabs button{font:inherit;font-size:13.5px;background:none;border:0;border-bottom:2px solid transparent;color:var(--ink-2);padding:8px 10px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:500}
+.charthead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;align-items:baseline;margin-bottom:4px}
+.charthead h2{font-size:16px;font-weight:600;margin:0}
+.charthead h2 .d{font-family:var(--math);font-weight:400;font-style:italic;color:var(--ink-2);margin-left:6px}
+.hint{font-size:12px;color:var(--muted)}
+#curve,#surface{width:100%;height:480px}
+@media (max-width:600px){#curve,#surface{height:360px}}
+.gridwrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.mini{border:1px solid var(--line);border-radius:8px;padding:6px 8px 2px;background:var(--panel);cursor:pointer}
+.mini:hover{border-color:var(--accent)}
+.mini .t{display:flex;justify-content:space-between;font-size:12.5px;font-weight:500}
+.mini .t span{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400}
+.mini .p{height:170px}
+.bottom{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+@media (max-width:1100px){.bottom{grid-template-columns:1fr}}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--grid);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+td .sym{font-family:var(--math);font-style:italic;color:var(--ink-2);margin-left:6px}
+td.u{color:var(--muted);font-size:12px}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--panel-2)}
+tbody tr.sel{background:var(--accent-soft)}
+.neg{color:var(--put)}
+.fx h3{margin:0 0 2px;font-size:15px}
+.fx .def{color:var(--ink-2);font-size:13px;margin:0 0 10px}
+.eq{font-family:var(--math);font-size:17px;line-height:1.7;background:var(--panel-2);border:1px solid var(--grid);border-radius:8px;padding:10px 12px;overflow-x:auto;white-space:nowrap}
+.eq .lab{font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:inline-block;width:56px}
+.eq i{font-style:italic}
+.vars{margin:10px 0 0;padding-left:18px;color:var(--ink-2);font-size:13px;columns:2 220px;column-gap:24px}
+.vars li{break-inside:avoid;margin-bottom:2px}
+.vars b{font-family:var(--math);font-style:italic;font-weight:400;color:var(--ink);font-size:15px}
+.note{font-size:12px;color:var(--muted);margin:10px 0 0}
+.intuit{font-size:13px;color:var(--ink);margin:10px 0 0;padding:8px 10px;border-left:2px solid var(--accent);background:var(--panel-2)}
+.src{font-size:12px;color:var(--muted);margin-top:12px}
+.src a{color:var(--accent-ink)}
+.fallback{padding:40px;text-align:center;color:var(--muted)}
+.legbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 10px}
+.legbar select{width:auto;min-width:200px}
+table.legs td{padding:4px 6px}
+table.legs input,table.legs select{font:inherit;font-family:var(--mono);font-size:12.5px;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:4px 6px;width:88px}
+table.legs select{font-family:var(--sans);width:92px}
+table.legs input:disabled{opacity:.4}
+table.legs tbody tr{cursor:default}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.xbtn{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 6px}
+.xbtn:hover{color:var(--put)}
+.legfoot{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:space-between;margin-top:8px}
+.seg button{font-size:12.5px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header class="top">
+    <h1>Black-Scholes Greeks Lab<span class="sub">V(S, K, T, σ, r, q)</span></h1>
+    <p class="tagline">Drag any input. Every curve, surface and number recomputes from the closed-form BSM formulas.</p>
+  </header>
+
+  <div class="layout">
+    <aside class="ctl" aria-label="Controls">
+      <div class="grp">
+        <span class="lbl">Option</span>
+        <div class="seg" id="typeSeg" role="group" aria-label="Option type">
+          <button id="tCall" data-v="c" aria-pressed="true">Call</button>
+          <button id="tPut" data-v="p" aria-pressed="false">Put</button>
+          <button id="tBoth" data-v="b" aria-pressed="false">Both</button>
+          <button id="tStrat" data-v="s" aria-pressed="false">Strategy</button>
+        </div>
+      </div>
+      <div class="grp">
+        <label class="lbl" for="greekSel">Greek (y-axis)</label>
+        <select id="greekSel"></select>
+      </div>
+      <div class="grp">
+        <label class="lbl" for="xSel">X-axis variable</label>
+        <select id="xSel"></select>
+      </div>
+      <div class="grp" id="ySelGrp">
+        <label class="lbl" for="ySel">Second axis (surface)</label>
+        <select id="ySel"></select>
+      </div>
+      <div class="grp" id="ovGrp">
+        <label class="lbl" for="ovSel">Overlay a family of curves</label>
+        <select id="ovSel"></select>
+      </div>
+      <div class="dvd"></div>
+      <div class="grp" id="sliders"></div>
+      <div class="row">
+        <button class="btn primary" id="playBtn" type="button">▶ Play time decay</button>
+        <button class="btn" id="resetBtn" type="button">Reset</button>
+      </div>
+      <div class="dvd"></div>
+      <label class="chk"><input type="checkbox" id="unitsChk" checked> Trader units (per day, per 1 vol pt, per 1%)</label>
+      <label class="chk"><input type="checkbox" id="freezeChk"> Freeze y-axis while dragging</label>
+    </aside>
+
+    <main>
+      <section class="card">
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tab-curve" aria-selected="true" data-tab="curve">Curve</button>
+          <button role="tab" id="tab-surface" aria-selected="false" data-tab="surface">Surface 3D</button>
+          <button role="tab" id="tab-heat" aria-selected="false" data-tab="heat">Heatmap</button>
+          <button role="tab" id="tab-grid" aria-selected="false" data-tab="grid">All Greeks</button>
+        </div>
+        <div class="charthead">
+          <h2 id="chartTitle">Delta vs Spot</h2>
+          <span class="hint" id="chartHint">Dot = current inputs. Hover for values.</span>
+        </div>
+        <div id="curve"></div>
+        <div id="surface" hidden></div>
+        <div id="grid" class="gridwrap" hidden></div>
+      </section>
+
+      <section class="card" id="legsCard" hidden>
+        <div class="charthead"><h2>Strategy legs</h2><span class="hint" id="netHint"></span></div>
+        <div class="legbar">
+          <label class="lbl" for="presetSel">Preset</label>
+          <select id="presetSel"></select>
+          <button class="btn" id="addLeg" type="button">+ Add leg</button>
+        </div>
+        <div class="tblwrap"><table class="legs">
+          <thead><tr><th>Leg</th><th>Type</th><th>Qty (+ long, − short)</th><th>Strike K</th><th>Expiry (days)</th><th>Unit price</th><th>Position value</th><th></th></tr></thead>
+          <tbody id="legBody"></tbody>
+        </table></div>
+        <div class="legfoot">
+          <label class="chk"><input type="checkbox" id="showLegsChk" checked> Show each leg on the curve</label>
+          <span class="hint">S, σ, r, q apply to every leg. The T slider is the front leg's time to expiry; later legs keep their gap in days.</span>
+        </div>
+      </section>
+
+      <div class="bottom">
+        <section class="card">
+          <div class="charthead"><h2>Greeks at current inputs</h2><span class="hint" id="d12"></span></div>
+          <div class="tblwrap"><table>
+            <thead><tr><th>Greek</th><th>Call</th><th>Put</th><th>Unit</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table></div>
+          <p class="note">Click a row to plot it. Theta, charm, veta and color are calendar-time decay (∂/∂t = −∂/∂T).</p>
+        </section>
+        <section class="card fx" id="fx"></section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+// ---------- Black-Scholes-Merton engine ----------
+const SQ2PI = Math.sqrt(2 * Math.PI);
+function npdf(x) { return Math.exp(-0.5 * x * x) / SQ2PI; }
+function ncdf(x) {
+  // Cody-style rational approx via erfc (W. J. Cody / Numerical Recipes erfc, |err| < 1.2e-7)
+  const z = Math.abs(x) / Math.SQRT2;
+  const t = 1 / (1 + 0.5 * z);
+  const r = t * Math.exp(-z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 +
+    t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 +
+    t * (-0.82215223 + t * 0.17087277)))))))));
+  return x >= 0 ? 1 - 0.5 * r : 0.5 * r;
+}
+// p = {S, K, T, sig, r, q}; returns raw (unscaled) greeks for call (c) and put (p)
+function bsm(p) {
+  const S = Math.max(p.S, 1e-8), K = Math.max(p.K, 1e-8);
+  const T = Math.max(p.T, 1e-6), s = Math.max(p.sig, 1e-6), r = p.r, q = p.q;
+  const sT = Math.sqrt(T), vs = s * sT;
+  const d1 = (Math.log(S / K) + (r - q + 0.5 * s * s) * T) / vs;
+  const d2 = d1 - vs;
+  const eq = Math.exp(-q * T), er = Math.exp(-r * T);
+  const Nd1 = ncdf(d1), Nd2 = ncdf(d2), Nm1 = ncdf(-d1), Nm2 = ncdf(-d2);
+  const nd1 = npdf(d1), nd2 = npdf(d2);
+
+  const gamma = eq * nd1 / (S * vs);
+  const vega = S * eq * nd1 * sT;
+  const vanna = -eq * nd1 * d2 / s;
+  const vomma = vega * d1 * d2 / s;
+  const veta = S * eq * nd1 * sT * (q + (r - q) * d1 / vs - (1 + d1 * d2) / (2 * T));
+  const speed = -gamma / S * (d1 / vs + 1);
+  const zomma = gamma * (d1 * d2 - 1) / s;
+  const color = eq * nd1 / (2 * S * T * vs) * (2 * q * T + 1 + (2 * (r - q) * T - d2 * vs) / vs * d1);
+  const ultima = -vega / (s * s) * (d1 * d2 * (1 - d1 * d2) + d1 * d1 + d2 * d2);
+  const dualGamma = er * nd2 / (K * vs);
+  const thetaCommon = -S * eq * nd1 * s / (2 * sT);
+  const charmCommon = eq * nd1 * (2 * (r - q) * T - d2 * vs) / (2 * T * vs);
+
+  const c = {
+    price: S * eq * Nd1 - K * er * Nd2,
+    delta: eq * Nd1, gamma, vega,
+    theta: thetaCommon - r * K * er * Nd2 + q * S * eq * Nd1,
+    rho: K * T * er * Nd2,
+    epsilon: -S * T * eq * Nd1,
+    vanna, charm: q * eq * Nd1 - charmCommon,
+    vomma, veta, speed, zomma, color, ultima,
+    dualDelta: -er * Nd2, dualGamma,
+  };
+  const pu = {
+    price: K * er * Nm2 - S * eq * Nm1,
+    delta: -eq * Nm1, gamma, vega,
+    theta: thetaCommon + r * K * er * Nm2 - q * S * eq * Nm1,
+    rho: -K * T * er * Nm2,
+    epsilon: S * T * eq * Nm1,
+    vanna, charm: -q * eq * Nm1 - charmCommon,
+    vomma, veta, speed, zomma, color, ultima,
+    dualDelta: er * Nm2, dualGamma,
+  };
+  return { c, p: pu, d1, d2 };
+}
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<script>
+(function boot(){
+  if (window.Plotly) return start();
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js';
+  s.onload = start;
+  s.onerror = () => { document.getElementById('curve').innerHTML = '<div class="fallback">The chart library could not load. The table below still updates.</div>'; startNoPlot(); };
+  document.head.appendChild(s);
+})();
+
+let startNoPlot = () => {};
+function start(){ init(true); }
+startNoPlot = () => init(false);
+
+function init(hasPlot){
+// ---------------- metadata ----------------
+const PARAMS = {
+  S:   {name:'Spot',            sym:'S', min:10, max:300, step:0.5, def:100, fmt:v=>v.toFixed(2)},
+  K:   {name:'Strike',          sym:'K', min:10, max:300, step:0.5, def:100, fmt:v=>v.toFixed(2)},
+  T:   {name:'Time to expiry',  sym:'T', min:1,  max:1825, step:1, def:182, fmt:v=>`${Math.round(v*365)} d · ${v.toFixed(2)} y`, sliderToVal:d=>d/365, valToSlider:v=>Math.round(v*365)},
+  sig: {name:'Volatility',      sym:'σ', min:1,  max:150, step:0.5, def:20, fmt:v=>(v*100).toFixed(1)+'%', sliderToVal:x=>x/100, valToSlider:v=>v*100},
+  r:   {name:'Risk-free rate',  sym:'r', min:-2, max:15, step:0.05, def:4, fmt:v=>(v*100).toFixed(2)+'%', sliderToVal:x=>x/100, valToSlider:v=>v*100},
+  q:   {name:'Dividend yield',  sym:'q', min:0,  max:10, step:0.05, def:0, fmt:v=>(v*100).toFixed(2)+'%', sliderToVal:x=>x/100, valToSlider:v=>v*100},
+};
+const PKEYS = ['S','K','T','sig','r','q'];
+const AXLABEL = {S:'Spot S', K:'Strike K', T:'Time to expiry T (years)', sig:'Volatility σ', r:'Risk-free rate r', q:'Dividend yield q'};
+const PCT = {sig:1, r:1, q:1};
+
+const G = [
+ {k:'price', n:'Price', s:'V', d:'V', sc:1, u:'$', ru:'$',
+  def:'Option premium.',
+  f:{c:'<i>C</i> = <i>S</i>e<sup>−<i>qT</i></sup><i>N</i>(<i>d</i><sub>1</sub>) − <i>K</i>e<sup>−<i>rT</i></sup><i>N</i>(<i>d</i><sub>2</sub>)', p:'<i>P</i> = <i>K</i>e<sup>−<i>rT</i></sup><i>N</i>(−<i>d</i><sub>2</sub>) − <i>S</i>e<sup>−<i>qT</i></sup><i>N</i>(−<i>d</i><sub>1</sub>)'},
+  why:'Try x = σ: a call and a put both gain from volatility. Try x = T with high r: a deep ITM European put can be worth less with more time.'},
+ {k:'delta', n:'Delta', s:'Δ', d:'∂V/∂S', sc:1, u:'per $1 S', ru:'per $1 S',
+  def:'Price change per $1 move in spot; also the hedge ratio.',
+  f:{c:'Δ<sub>C</sub> = e<sup>−<i>qT</i></sup><i>N</i>(<i>d</i><sub>1</sub>)', p:'Δ<sub>P</sub> = −e<sup>−<i>qT</i></sup><i>N</i>(−<i>d</i><sub>1</sub>)'},
+  why:'Play time decay with x = S: the S-curve sharpens into a step at K as expiry nears.'},
+ {k:'gamma', n:'Gamma', s:'Γ', d:'∂²V/∂S²', sc:1, u:'per $1 S', ru:'per $1 S',
+  def:'Change in delta per $1 move in spot. Same for calls and puts.',
+  f:{b:'Γ = e<sup>−<i>qT</i></sup><i>n</i>(<i>d</i><sub>1</sub>) / (<i>Sσ</i>√<i>T</i>)'},
+  why:'Short-dated ATM gamma explodes: set x = S and press Play, with the y-axis unfrozen.'},
+ {k:'vega', n:'Vega', s:'ν', d:'∂V/∂σ', sc:0.01, u:'per 1 vol pt', ru:'per 1.00 σ',
+  def:'Price change per 1 volatility point. Same for calls and puts.',
+  f:{b:'ν = <i>S</i>e<sup>−<i>qT</i></sup><i>n</i>(<i>d</i><sub>1</sub>)√<i>T</i>'},
+  why:'Opposite of gamma in time: vega grows with √T, so long-dated options carry the most vega.'},
+ {k:'theta', n:'Theta', s:'Θ', d:'∂V/∂t', sc:1/365, u:'per day', ru:'per year',
+  def:'Price change per day that passes, all else fixed.',
+  f:{c:'Θ<sub>C</sub> = −<i>S</i>e<sup>−<i>qT</i></sup><i>n</i>(<i>d</i><sub>1</sub>)<i>σ</i>/(2√<i>T</i>) − <i>rK</i>e<sup>−<i>rT</i></sup><i>N</i>(<i>d</i><sub>2</sub>) + <i>qS</i>e<sup>−<i>qT</i></sup><i>N</i>(<i>d</i><sub>1</sub>)',
+     p:'Θ<sub>P</sub> = −<i>S</i>e<sup>−<i>qT</i></sup><i>n</i>(<i>d</i><sub>1</sub>)<i>σ</i>/(2√<i>T</i>) + <i>rK</i>e<sup>−<i>rT</i></sup><i>N</i>(−<i>d</i><sub>2</sub>) − <i>qS</i>e<sup>−<i>qT</i></sup><i>N</i>(−<i>d</i><sub>1</sub>)'},
+  why:'Try x = S for a put with r = 8%: deep ITM put theta turns positive (the rK·N(−d₂) term wins).'},
+ {k:'rho', n:'Rho', s:'ρ', d:'∂V/∂r', sc:0.01, u:'per 1% r', ru:'per 1.00 r',
+  def:'Price change per 1 percentage point rise in the risk-free rate.',
+  f:{c:'ρ<sub>C</sub> = <i>KT</i>e<sup>−<i>rT</i></sup><i>N</i>(<i>d</i><sub>2</sub>)', p:'ρ<sub>P</sub> = −<i>KT</i>e<sup>−<i>rT</i></sup><i>N</i>(−<i>d</i><sub>2</sub>)'},
+  why:'Rho scales with T: it barely matters for 1-month options and dominates LEAPS.'},
+ {k:'epsilon', n:'Epsilon (Psi)', s:'ψ', d:'∂V/∂q', sc:0.01, u:'per 1% q', ru:'per 1.00 q',
+  def:'Price change per 1 percentage point rise in dividend yield.',
+  f:{c:'ψ<sub>C</sub> = −<i>ST</i>e<sup>−<i>qT</i></sup><i>N</i>(<i>d</i><sub>1</sub>)', p:'ψ<sub>P</sub> = <i>ST</i>e<sup>−<i>qT</i></sup><i>N</i>(−<i>d</i><sub>1</sub>)'},
+  why:'Mirror image of rho: a higher dividend yield lowers the forward, hurting calls and helping puts.'},
+ {k:'vanna', n:'Vanna', s:'Vanna', d:'∂²V/∂S∂σ', sc:0.01, u:'Δ per 1 vol pt', ru:'Δ per 1.00 σ',
+  def:'Change in delta per 1 vol point (equivalently, change in vega per $1 spot).',
+  f:{b:'Vanna = −e<sup>−<i>qT</i></sup><i>n</i>(<i>d</i><sub>1</sub>) <i>d</i><sub>2</sub> / <i>σ</i>'},
+  why:'Sign flips across the forward: positive for OTM calls, negative for ITM calls. Look at x = S.'},
+ {k:'charm', n:'Charm', s:'Charm', d:'∂Δ/∂t', sc:1/365, u:'Δ per day', ru:'Δ per year',
+  def:'Delta drift per day with spot unchanged (delta bleed).',
+  f:{c:'Charm<sub>C</sub> = <i>q</i>e<sup>−<i>qT</i></sup><i>N</i>(<i>d</i><sub>1</sub>) − e<sup>−<i>qT</i></sup><i>n</i>(<i>d</i><sub>1</sub>) · [2(<i>r</i>−<i>q</i>)<i>T</i> − <i>d</i><sub>2</sub><i>σ</i>√<i>T</i>] / (2<i>Tσ</i>√<i>T</i>)',
+     p:'Charm<sub>P</sub> = −<i>q</i>e<sup>−<i>qT</i></sup><i>N</i>(−<i>d</i><sub>1</sub>) − e<sup>−<i>qT</i></sup><i>n</i>(<i>d</i><sub>1</sub>) · [2(<i>r</i>−<i>q</i>)<i>T</i> − <i>d</i><sub>2</sub><i>σ</i>√<i>T</i>] / (2<i>Tσ</i>√<i>T</i>)'},
+  why:'OTM deltas decay toward 0 and ITM deltas toward ±1 as time passes. Watch it grow near expiry.'},
+ {k:'vomma', n:'Vomma (Volga)', s:'Vomma', d:'∂²V/∂σ²', sc:1e-4, u:'vega per 1 vol pt', ru:'per 1.00 σ²',
+  def:'Change in vega per 1 vol point; convexity in volatility.',
+  f:{b:'Vomma = ν · <i>d</i><sub>1</sub><i>d</i><sub>2</sub> / <i>σ</i>'},
+  why:'Near zero ATM, positive in the wings: that is why OTM options carry a vol-of-vol premium.'},
+ {k:'veta', n:'Veta', s:'Veta', d:'∂ν/∂t', sc:1e-2/365, u:'vega per day', ru:'per year',
+  def:'Change in vega (per 1 vol pt) per day that passes.',
+  f:{b:'Veta = <i>S</i>e<sup>−<i>qT</i></sup><i>n</i>(<i>d</i><sub>1</sub>)√<i>T</i> · [<i>q</i> + (<i>r</i>−<i>q</i>)<i>d</i><sub>1</sub>/(<i>σ</i>√<i>T</i>) − (1 + <i>d</i><sub>1</sub><i>d</i><sub>2</sub>)/(2<i>T</i>)]'},
+  why:'Mostly negative: vega bleeds away with time, fastest for short-dated ATM options.'},
+ {k:'speed', n:'Speed', s:'Speed', d:'∂³V/∂S³', sc:1, u:'Γ per $1 S', ru:'Γ per $1 S',
+  def:'Change in gamma per $1 move in spot.',
+  f:{b:'Speed = −(Γ / <i>S</i>) · [<i>d</i><sub>1</sub>/(<i>σ</i>√<i>T</i>) + 1]'},
+  why:'Zero near the gamma peak, positive below it and negative above it.'},
+ {k:'zomma', n:'Zomma', s:'Zomma', d:'∂Γ/∂σ', sc:0.01, u:'Γ per 1 vol pt', ru:'Γ per 1.00 σ',
+  def:'Change in gamma per 1 vol point.',
+  f:{b:'Zomma = Γ · (<i>d</i><sub>1</sub><i>d</i><sub>2</sub> − 1) / <i>σ</i>'},
+  why:'Higher vol flattens gamma: ATM gamma falls, wing gamma rises.'},
+ {k:'color', n:'Color', s:'Color', d:'∂Γ/∂t', sc:1/365, u:'Γ per day', ru:'Γ per year',
+  def:'Change in gamma per day that passes.',
+  f:{b:'Color = e<sup>−<i>qT</i></sup><i>n</i>(<i>d</i><sub>1</sub>) / (2<i>STσ</i>√<i>T</i>) · [2<i>qT</i> + 1 + (2(<i>r</i>−<i>q</i>)<i>T</i> − <i>d</i><sub>2</sub><i>σ</i>√<i>T</i>) <i>d</i><sub>1</sub>/(<i>σ</i>√<i>T</i>)]'},
+  why:'ATM gamma rises each day toward expiry; far wings lose gamma.'},
+ {k:'ultima', n:'Ultima', s:'Ultima', d:'∂³V/∂σ³', sc:1e-6, u:'vomma per 1 vol pt', ru:'per 1.00 σ³',
+  def:'Change in vomma per 1 vol point.',
+  f:{b:'Ultima = −(ν / <i>σ</i>²) · [<i>d</i><sub>1</sub><i>d</i><sub>2</sub>(1 − <i>d</i><sub>1</sub><i>d</i><sub>2</sub>) + <i>d</i><sub>1</sub>² + <i>d</i><sub>2</sub>²]'},
+  why:'Third-order vol sensitivity; mainly of interest for vol-of-vol books.'},
+ {k:'dualDelta', n:'Dual Delta', s:'∂V/∂K', d:'∂V/∂K', sc:1, u:'per $1 K', ru:'per $1 K',
+  def:'Price change per $1 change in strike. −Dual delta of a call = e^{−rT}·risk-neutral P(S_T > K).',
+  f:{c:'∂<i>C</i>/∂<i>K</i> = −e<sup>−<i>rT</i></sup><i>N</i>(<i>d</i><sub>2</sub>)', p:'∂<i>P</i>/∂<i>K</i> = e<sup>−<i>rT</i></sup><i>N</i>(−<i>d</i><sub>2</sub>)'},
+  why:'Use x = K: this is (minus) the discounted risk-neutral probability of finishing ITM.'},
+ {k:'dualGamma', n:'Dual Gamma', s:'∂²V/∂K²', d:'∂²V/∂K²', sc:1, u:'per $1 K', ru:'per $1 K',
+  def:'Second derivative in strike: the discounted risk-neutral density of S_T at K (Breeden-Litzenberger).',
+  f:{b:'∂²<i>V</i>/∂<i>K</i>² = e<sup>−<i>rT</i></sup><i>n</i>(<i>d</i><sub>2</sub>) / (<i>Kσ</i>√<i>T</i>)'},
+  why:'Set x = K: the curve is the lognormal density of S_T. Raise σ or T and watch it spread.'},
+];
+const GBY = Object.fromEntries(G.map(g=>[g.k,g]));
+
+const OVERLAY = {
+  none:{n:'None'},
+  T:{n:'Time to expiry T', vals:v=>[0.1,0.25,0.5,1,2].map(m=>v*m)},
+  sig:{n:'Volatility σ', vals:v=>[0.5,0.75,1,1.5,2].map(m=>v*m)},
+  S:{n:'Spot S', vals:v=>[0.8,0.9,1,1.1,1.2].map(m=>v*m)},
+  K:{n:'Strike K', vals:v=>[0.8,0.9,1,1.1,1.2].map(m=>v*m)},
+  r:{n:'Rate r', vals:v=>[-0.02,-0.01,0,0.01,0.02].map(d=>v+d)},
+  q:{n:'Dividend yield q', vals:v=>[0,0.01,0.02,0.03,0.04].map(d=>Math.max(0,v+d-0.02))},
+};
+
+// ---------------- state ----------------
+const state = { type:'c', greek:'delta', x:'S', y:'T', ov:'none', tab:'curve', units:true, freeze:false,
+  p:{S:100,K:100,T:182/365,sig:0.20,r:0.04,q:0} };
+state.legs = null; state.preset = 'straddle'; state.showLegs = true;
+const DEF = JSON.parse(JSON.stringify(state.p));
+try { const saved = JSON.parse(localStorage.getItem('bsgl') || 'null'); if (saved) Object.assign(state, saved, {p:Object.assign({}, state.p, saved.p)}); } catch(e){}
+function save(){ try{ localStorage.setItem('bsgl', JSON.stringify({type:state.type,greek:state.greek,x:state.x,y:state.y,ov:state.ov,tab:state.tab,units:state.units,p:state.p,legs:state.legs,preset:state.preset,showLegs:state.showLegs})); }catch(e){} }
+
+// ---------------- strategy (multi-leg) ----------------
+const PRESETS = {
+  longCall:   {n:'Long call',              f:(S,D)=>[['c', 1,S,D]]},
+  longPut:    {n:'Long put',               f:(S,D)=>[['p', 1,S,D]]},
+  coveredCall:{n:'Covered call',           f:(S,D)=>[['s', 1],['c',-1,S*1.05,D]]},
+  protPut:    {n:'Protective put',         f:(S,D)=>[['s', 1],['p', 1,S*0.95,D]]},
+  collar:     {n:'Collar',                 f:(S,D)=>[['s', 1],['p', 1,S*0.95,D],['c',-1,S*1.05,D]]},
+  bullCall:   {n:'Bull call spread',       f:(S,D)=>[['c', 1,S,D],['c',-1,S*1.1,D]]},
+  bearPut:    {n:'Bear put spread',        f:(S,D)=>[['p', 1,S,D],['p',-1,S*0.9,D]]},
+  straddle:   {n:'Long straddle',          f:(S,D)=>[['c', 1,S,D],['p', 1,S,D]]},
+  shortStraddle:{n:'Short straddle',       f:(S,D)=>[['c',-1,S,D],['p',-1,S,D]]},
+  strangle:   {n:'Long strangle',          f:(S,D)=>[['c', 1,S*1.05,D],['p', 1,S*0.95,D]]},
+  butterfly:  {n:'Long call butterfly',    f:(S,D)=>[['c', 1,S*0.9,D],['c',-2,S,D],['c', 1,S*1.1,D]]},
+  condor:     {n:'Short iron condor',      f:(S,D)=>[['p', 1,S*0.9,D],['p',-1,S*0.95,D],['c',-1,S*1.05,D],['c', 1,S*1.1,D]]},
+  calendar:   {n:'Call calendar spread',   f:(S,D)=>[['c',-1,S,D],['c', 1,S,D*2]]},
+  riskRev:    {n:'Risk reversal',          f:(S,D)=>[['c', 1,S*1.05,D],['p',-1,S*0.95,D]]},
+  ratio:      {n:'1×2 call ratio spread',  f:(S,D)=>[['c', 1,S,D],['c',-2,S*1.1,D]]},
+  custom:     {n:'Custom', f:null},
+};
+function buildPreset(key){
+  const S = state.p.S, D = Math.max(2, Math.round(state.p.T*365));
+  return PRESETS[key].f(S, D).map(([type,qty,K,days]) => ({type, qty, K: K ? Math.round(K) : Math.round(S), days: days ? Math.round(days) : D}));
+}
+if (!state.legs || !state.legs.length) state.legs = buildPreset(state.preset in PRESETS && state.preset !== 'custom' ? state.preset : 'straddle');
+function optLegs(){ return state.legs.filter(l => l.type !== 's'); }
+function frontDays(){ const o = optLegs(); return o.length ? Math.min(...o.map(l => l.days)) : Math.round(state.p.T*365); }
+function legRaw(leg, g, p){
+  if (leg.type === 's') return leg.qty * (g === 'price' ? p.S : g === 'delta' ? 1 : 0);
+  const T = p.T + (leg.days - frontDays())/365;
+  return leg.qty * bsm(Object.assign({}, p, {K:leg.K, T}))[leg.type][g];
+}
+function legLabel(l){ const q = (l.qty>0?'+':'−') + Math.abs(l.qty); return l.type === 's' ? `${q} Stock` : `${q} ${l.type==='c'?'Call':'Put'} ${l.K} · ${l.days}d`; }
+
+// ---------------- controls ----------------
+const $ = id => document.getElementById(id);
+const greekSel = $('greekSel'), xSel = $('xSel'), ySel = $('ySel'), ovSel = $('ovSel');
+G.forEach(g => greekSel.add(new Option(`${g.n}  (${g.d})`, g.k)));
+PKEYS.forEach(k => { xSel.add(new Option(`${PARAMS[k].name} ${PARAMS[k].sym}`, k)); ySel.add(new Option(`${PARAMS[k].name} ${PARAMS[k].sym}`, k)); });
+Object.entries(OVERLAY).forEach(([k,o]) => ovSel.add(new Option(o.n, k)));
+
+const slWrap = $('sliders'); const outs = {}, ins = {}, rows = {};
+PKEYS.forEach(k => {
+  const P = PARAMS[k];
+  const d = document.createElement('div'); d.className = 'sl';
+  d.innerHTML = `<label class="nm" for="sl-${k}">${P.sym}<small>${P.name}</small></label><output id="o-${k}" for="sl-${k}"></output>
+    <input type="range" id="sl-${k}" min="${P.min}" max="${P.max}" step="${P.step}">`;
+  slWrap.appendChild(d); rows[k] = d;
+  ins[k] = d.querySelector('input'); outs[k] = d.querySelector('output');
+  ins[k].addEventListener('input', () => { const raw = +ins[k].value; state.p[k] = P.sliderToVal ? P.sliderToVal(raw) : raw; outs[k].textContent = P.fmt(state.p[k]); schedule(); });
+});
+function syncControls(){
+  PKEYS.forEach(k => { const P = PARAMS[k]; ins[k].value = P.valToSlider ? P.valToSlider(state.p[k]) : state.p[k]; outs[k].textContent = P.fmt(state.p[k]); });
+  greekSel.value = state.greek; xSel.value = state.x; ySel.value = state.y; ovSel.value = state.ov;
+  document.querySelectorAll('#typeSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === state.type)));
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === state.tab)));
+  $('unitsChk').checked = state.units; $('freezeChk').checked = state.freeze;
+  $('curve').hidden = state.tab !== 'curve'; $('surface').hidden = !(state.tab === 'surface' || state.tab === 'heat'); $('grid').hidden = state.tab !== 'grid';
+  $('ySelGrp').hidden = !(state.tab === 'surface' || state.tab === 'heat');
+  $('ovGrp').hidden = (state.tab === 'surface' || state.tab === 'heat');
+  const strat = state.type === 's';
+  $('legsCard').hidden = !strat;
+  rows.K.hidden = strat;
+  rows.T.querySelector('small').textContent = strat ? 'Front leg expiry' : 'Time to expiry';
+  [xSel, ySel, ovSel].forEach(sel => [...sel.options].forEach(o => { if (o.value === 'K') o.disabled = strat; }));
+  if (strat){ if (state.x === 'K') { state.x = 'S'; xSel.value = 'S'; } if (state.y === 'K' || state.y === state.x) { state.y = state.x === 'T' ? 'S' : 'T'; ySel.value = state.y; } if (state.ov === 'K') { state.ov = 'none'; ovSel.value = 'none'; } }
+  $('presetSel').value = state.preset; $('showLegsChk').checked = state.showLegs;
+}
+document.querySelectorAll('#typeSeg button').forEach(b => b.addEventListener('click', () => {
+  const wasStrat = state.type === 's'; state.type = b.dataset.v;
+  if (state.type === 's' && !wasStrat) state.p.T = frontDays()/365;
+  syncControls(); frozenY = null; schedule(); }));
+
+// leg editor
+const presetSel = $('presetSel');
+Object.entries(PRESETS).forEach(([k,v]) => presetSel.add(new Option(v.n, k)));
+function catColors(){ return css('--cat').split(',').map(x=>x.trim()); }
+function buildLegRows(){
+  const cols = catColors();
+  $('legBody').innerHTML = state.legs.map((l,i) => `<tr data-i="${i}">
+    <td><span class="sw" style="background:${cols[i % cols.length]}"></span>${i+1}</td>
+    <td><select data-f="type" aria-label="Leg ${i+1} type"><option value="c"${l.type==='c'?' selected':''}>Call</option><option value="p"${l.type==='p'?' selected':''}>Put</option><option value="s"${l.type==='s'?' selected':''}>Stock</option></select></td>
+    <td><input data-f="qty" type="number" step="1" value="${l.qty}" aria-label="Leg ${i+1} quantity"></td>
+    <td><input data-f="K" type="number" step="1" min="1" value="${l.K}" ${l.type==='s'?'disabled':''} aria-label="Leg ${i+1} strike"></td>
+    <td><input data-f="days" type="number" step="1" min="1" value="${l.days}" ${l.type==='s'?'disabled':''} aria-label="Leg ${i+1} expiry in days"></td>
+    <td class="n" id="lp-${i}"></td><td class="n" id="lv-${i}"></td>
+    <td><button class="xbtn" data-del="${i}" type="button" aria-label="Remove leg ${i+1}">×</button></td></tr>`).join('');
+}
+function legsChanged(structural){
+  state.preset = 'custom';
+  const o = optLegs(); if (o.length) state.p.T = frontDays()/365;
+  if (structural) buildLegRows();
+  syncControls(); frozenY = null; schedule();
+}
+$('legBody').addEventListener('input', e => {
+  const tr = e.target.closest('tr'), f = e.target.dataset.f; if (!tr || !f) return;
+  const l = state.legs[+tr.dataset.i];
+  if (f === 'type') { l.type = e.target.value; if (!l.K) l.K = Math.round(state.p.S); if (!l.days) l.days = frontDays(); return legsChanged(true); }
+  const v = +e.target.value; if (!isFinite(v) || e.target.value === '') return;
+  if (f === 'qty') l.qty = v; if (f === 'K' && v > 0) l.K = v; if (f === 'days' && v >= 1) l.days = Math.round(v);
+  legsChanged(false);
+});
+$('legBody').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (!b) return; state.legs.splice(+b.dataset.del, 1); if (!state.legs.length) state.legs.push({type:'c', qty:1, K:Math.round(state.p.S), days:Math.round(state.p.T*365)}); legsChanged(true); });
+$('addLeg').addEventListener('click', () => { if (state.legs.length >= 8) return; state.legs.push({type:'c', qty:1, K:Math.round(state.p.S), days:frontDays()}); legsChanged(true); });
+presetSel.addEventListener('change', () => { if (presetSel.value === 'custom') return; state.legs = buildPreset(presetSel.value); const pr = presetSel.value; legsChanged(true); state.preset = pr; presetSel.value = pr; save(); });
+$('showLegsChk').addEventListener('change', e => { state.showLegs = e.target.checked; schedule(); });
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { state.tab = b.dataset.tab; syncControls(); schedule(); }));
+greekSel.addEventListener('change', () => { state.greek = greekSel.value; frozenY = null; schedule(); });
+xSel.addEventListener('change', () => { state.x = xSel.value; if (state.x === state.y) { state.y = state.x === 'T' ? 'S' : 'T'; ySel.value = state.y; } frozenY = null; schedule(); });
+ySel.addEventListener('change', () => { state.y = ySel.value; if (state.x === state.y) { state.x = state.y === 'S' ? 'T' : 'S'; xSel.value = state.x; } schedule(); });
+ovSel.addEventListener('change', () => { state.ov = ovSel.value; frozenY = null; schedule(); });
+$('unitsChk').addEventListener('change', e => { state.units = e.target.checked; frozenY = null; schedule(); });
+$('freezeChk').addEventListener('change', e => { state.freeze = e.target.checked; frozenY = null; schedule(); });
+$('resetBtn').addEventListener('click', () => { stopPlay(); state.p = JSON.parse(JSON.stringify(DEF)); if (state.type === 's') { state.legs = buildPreset(state.preset !== 'custom' ? state.preset : 'straddle'); state.p.T = frontDays()/365; buildLegRows(); } frozenY = null; syncControls(); schedule(); });
+
+// play: time decay from current T down to 1 day
+let playTimer = null;
+function stopPlay(){ if (playTimer){ cancelAnimationFrame(playTimer); playTimer = null; } $('playBtn').textContent = '▶ Play time decay'; }
+$('playBtn').addEventListener('click', () => {
+  if (playTimer) return stopPlay();
+  if (state.p.T <= 2/365) state.p.T = 365/365;
+  $('playBtn').textContent = '■ Stop';
+  let last = performance.now();
+  const step = now => {
+    const dt = (now - last) / 1000; last = now;
+    const days = state.p.T * 365;
+    const nd = Math.max(1, days - Math.max(1, days * 0.6) * dt);   // faster when far, slower near expiry
+    state.p.T = nd / 365; ins.T.value = Math.round(nd); outs.T.textContent = PARAMS.T.fmt(state.p.T);
+    render();
+    if (nd <= 1) return stopPlay();
+    playTimer = requestAnimationFrame(step);
+  };
+  playTimer = requestAnimationFrame(step);
+});
+
+// ---------------- math helpers ----------------
+function val(g, p, t){
+  const sc = state.units ? GBY[g].sc : 1;
+  if (t === 's') return state.legs.reduce((a, l) => a + legRaw(l, g, p), 0) * sc;
+  return bsm(p)[t][g] * sc;
+}
+function range(k){
+  const p = state.p;
+  switch(k){
+    case 'S': { let Kr = p.K; if (state.type === 's') { const ks = optLegs().map(l=>l.K); if (ks.length) { const lo = Math.min(...ks), hi = Math.max(...ks); return [Math.min(0.6*lo, 0.8*p.S), Math.max(1.4*hi, 1.2*p.S)]; } } return [Math.min(0.4*Kr, 0.8*p.S), Math.max(1.6*Kr, 1.2*p.S)]; }
+    case 'K': return [Math.min(0.4*p.S, 0.8*p.K), Math.max(1.6*p.S, 1.2*p.K)];
+    case 'T': return [1/365, Math.max(2, 1.25*p.T)];
+    case 'sig': return [0.02, Math.max(1, 1.25*p.sig)];
+    case 'r': return [Math.min(-0.02, p.r-0.02), Math.max(0.12, p.r+0.02)];
+    case 'q': return [0, Math.max(0.1, p.q+0.02)];
+  }
+}
+function linspace(a, b, n){ const o = []; for (let i=0;i<n;i++) o.push(a + (b-a)*i/(n-1)); return o; }
+function fmtNum(v){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a === 0) return '0';
+  if (a >= 1000) return v.toFixed(1);
+  if (a >= 1) return v.toFixed(4);
+  if (a >= 1e-4) return v.toFixed(5);
+  return v.toExponential(3);
+}
+function fmtParam(k, v){ return PARAMS[k].fmt(v); }
+function unitOf(g){ return state.units ? GBY[g].u : GBY[g].ru; }
+
+// ---------------- theme ----------------
+function css(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function theme(){
+  return { ink:css('--ink'), ink2:css('--ink-2'), muted:css('--muted'), grid:css('--grid'), line:css('--line'), panel:css('--panel'),
+    call:css('--call'), put:css('--put'), mark:css('--mark'),
+    rampC:css('--ramp-c').split(',').map(s=>s.trim()), rampP:css('--ramp-p').split(',').map(s=>s.trim()),
+    lo:css('--div-lo'), mid:css('--div-mid'), hi:css('--div-hi') };
+}
+function baseLayout(th, extra){
+  return Object.assign({
+    paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+    font:{family:'IBM Plex Sans, system-ui, sans-serif', color:th.ink2, size:12},
+    margin:{l:64,r:16,t:10,b:48},
+    hoverlabel:{bgcolor:th.panel, bordercolor:th.line, font:{color:th.ink, family:'IBM Plex Mono, monospace', size:12}},
+  }, extra);
+}
+function axis(th, title, pct){
+  return {title:{text:title, font:{size:12, color:th.ink2}}, gridcolor:th.grid, zerolinecolor:th.line, linecolor:th.line, tickcolor:th.line,
+          tickfont:{color:th.muted, family:'IBM Plex Mono, monospace', size:11}, tickformat: pct ? '.0%' : undefined, automargin:true};
+}
+const CFG = {displaylogo:false, responsive:true, modeBarButtonsToRemove:['lasso2d','select2d','autoScale2d']};
+
+// ---------------- curve ----------------
+let frozenY = null;
+function curveTraces(g, xk, n, th, small){
+  const [a,b] = range(xk); const xs = linspace(a, b, n);
+  const types = state.type === 'b' ? ['c','p'] : [state.type];
+  const traces = [];
+  const ov = small ? 'none' : state.ov;
+  const ovVals = ov !== 'none' && ov !== xk ? OVERLAY[ov].vals(state.p[ov]) : null;
+  types.forEach(t => {
+    const base = t === 'p' ? th.put : th.call;
+    const ramp = t === 'p' ? th.rampP : th.rampC;
+    const tname = t === 'c' ? 'Call' : t === 'p' ? 'Put' : 'Position';
+    const sets = ovVals ? ovVals.map((v,i)=>({v,i})) : [{v:null,i:2}];
+    sets.forEach(({v,i}) => {
+      const ys = xs.map(x => { const p = Object.assign({}, state.p, {[xk]:x}); if (v!==null) p[ov] = v; return val(g, p, t); });
+      const cur = v === null || i === 2;
+      const label = v === null ? tname : `${types.length>1?tname+' · ':''}${PARAMS[ov].sym} = ${fmtParam(ov, v)}`;
+      traces.push({x:xs, y:ys, type:'scatter', mode:'lines', name:label, showlegend: !small && (types.length>1 || !!ovVals || t === 's'),
+        line:{color: ovVals ? ramp[i] : base, width: small ? 1.6 : (cur ? 2.6 : 1.6)},
+        hovertemplate: `${label}<br>${PARAMS[xk].sym} = %{x${PCT[xk]?':.2%':':.4g'}}<br>${GBY[g].n} = %{y:.5g}<extra></extra>`});
+    });
+    // current point
+    const cx = state.p[xk], cy = val(g, state.p, t);
+    traces.push({x:[cx], y:[cy], type:'scatter', mode:'markers', showlegend:false, hoverinfo: small ? 'skip' : undefined,
+      marker:{size: small ? 7 : 10, color:base, line:{color:th.panel, width:2}},
+      hovertemplate:`Current ${tname}<br>${PARAMS[xk].sym} = %{x${PCT[xk]?':.2%':':.4g'}}<br>${GBY[g].n} = %{y:.5g}<extra></extra>`});
+  });
+  if (state.type === 's' && !small){
+    const cols = catColors();
+    const fmtx = `%{x${PCT[xk]?':.2%':':.4g'}}`;
+    if (state.showLegs && state.legs.length > 1 && g !== 'price') state.legs.forEach((l, i) => {
+      const ys = xs.map(x => legRaw(l, g, Object.assign({}, state.p, {[xk]:x})) * (state.units ? GBY[g].sc : 1));
+      traces.push({x:xs, y:ys, type:'scatter', mode:'lines', name:legLabel(l), line:{color:cols[i % cols.length], width:1.3, dash:'dash'},
+        hovertemplate:`${legLabel(l)}<br>${PARAMS[xk].sym} = ${fmtx}<br>%{y:.5g}<extra></extra>`});
+    });
+    if (g === 'price' && xk === 'S'){
+      const ys = xs.map(x => val('price', Object.assign({}, state.p, {S:x, T:1e-6}), 's'));
+      traces.push({x:xs, y:ys, type:'scatter', mode:'lines', name:'At front expiry', line:{color:th.ink, width:1.6, dash:'dot'},
+        hovertemplate:`At front expiry<br>S = %{x:.4g}<br>Value = %{y:.5g}<extra></extra>`});
+      const entry = val('price', state.p, 's');
+      traces.push({x:[xs[0], xs[xs.length-1]], y:[entry, entry], type:'scatter', mode:'lines', name:'Cost today (P&L = 0)', line:{color:th.muted, width:1}, hoverinfo:'skip'});
+    }
+  }
+  return traces;
+}
+function renderCurve(th){
+  const g = state.greek, xk = state.x;
+  const traces = curveTraces(g, xk, 260, th, false);
+  const layout = baseLayout(th, {
+    xaxis: axis(th, AXLABEL[xk], PCT[xk]),
+    yaxis: Object.assign(axis(th, `${GBY[g].n} (${unitOf(g)})`), {}),
+    legend:{orientation:'h', y:1.02, yanchor:'bottom', x:0, font:{color:th.ink2, size:12}, bgcolor:'rgba(0,0,0,0)'},
+    margin:{l:64,r:16,t: (state.type==='b'||state.type==='s'||state.ov!=='none') ? 44 : 10, b:48},
+    shapes:[{type:'line', xref:'x', yref:'paper', x0:state.p[xk], x1:state.p[xk], y0:0, y1:1, line:{color:th.muted, width:1, dash:'dot'}}],
+    hovermode:'closest',
+  });
+  // strike marker when x is S, spot marker when x is K
+  const ref = xk === 'S' ? state.p.K : xk === 'K' ? state.p.S : null;
+  if (state.type === 's') { layout.annotations = xk === 'S' ? [...new Set(optLegs().map(l=>l.K))].map(k => ({x:k, y:0, yref:'paper', xref:'x', text:'K', showarrow:false, yanchor:'bottom', font:{color:th.muted, size:11, family:'STIX Two Text, serif'}})) : []; }
+  else if (ref !== null) layout.annotations = [{x:ref, y:0, yref:'paper', xref:'x', text: xk==='S' ? 'K' : 'S', showarrow:false, yanchor:'bottom', font:{color:th.muted, size:11, family:'STIX Two Text, serif'}}];
+  if (state.freeze){
+    if (!frozenY){ const all = traces.flatMap(t=>t.y).filter(isFinite); const lo = Math.min(...all), hi = Math.max(...all); const pad = (hi-lo)*0.08 || 1; frozenY = [lo-pad, hi+pad]; }
+    layout.yaxis.range = frozenY; layout.yaxis.autorange = false;
+  }
+  const pre = state.type === 's' ? `${PRESETS[state.preset] ? PRESETS[state.preset].n : 'Custom'}: position ` : '';
+  $('chartTitle').innerHTML = `${pre}${pre ? GBY[g].n.toLowerCase() : GBY[g].n} vs ${PARAMS[xk].name}<span class="d">${GBY[g].d}</span>`;
+  $('chartHint').textContent = 'Dot = current inputs · dotted line = current ' + PARAMS[xk].sym + (state.ov!=='none' && state.ov!==xk ? ' · thick line = current ' + PARAMS[state.ov].sym : '');
+  Plotly.react('curve', traces, layout, CFG);
+}
+
+// ---------------- surface / heatmap ----------------
+function renderSurface(th, heat){
+  const g = state.greek, xk = state.x, yk = state.y;
+  const t = state.type === 's' ? 's' : state.type === 'p' ? 'p' : 'c';
+  const n = heat ? 90 : 56;
+  const xs = linspace(...range(xk), n), ys = linspace(...range(yk), n);
+  const z = ys.map(yv => xs.map(xv => { const p = Object.assign({}, state.p, {[xk]:xv, [yk]:yv}); return val(g, p, t); }));
+  const flat = z.flat().filter(isFinite);
+  // clip extreme tails so near-expiry spikes don't wash out the color scale
+  const sorted = flat.slice().sort((a,b)=>a-b);
+  const qlo = sorted[Math.floor(sorted.length*0.01)], qhi = sorted[Math.floor(sorted.length*0.99)];
+  const signed = qlo < 0 && qhi > 0;
+  const cs = signed ? [[0,th.lo],[0.5,th.mid],[1,th.hi]] : (qhi <= 0 ? [[0,th.rampC[4]],[1,th.rampC[0]]] : [[0,th.rampC[0]],[1,th.rampC[4]]]);
+  const lim = Math.max(Math.abs(qlo), Math.abs(qhi));
+  const common = {x:xs, y:ys, z, colorscale:cs,
+    colorbar:{thickness:10, outlinewidth:0, tickfont:{color:th.muted, family:'IBM Plex Mono, monospace', size:10}, title:{text:unitOf(g), font:{color:th.ink2, size:11}, side:'right'}},
+    hovertemplate:`${PARAMS[xk].sym} = %{x${PCT[xk]?':.2%':':.4g'}}<br>${PARAMS[yk].sym} = %{y${PCT[yk]?':.2%':':.4g'}}<br>${GBY[g].n} = %{z:.5g}<extra></extra>`};
+  if (signed){ common.cmin = -lim; common.cmax = lim; common.zmin = -lim; common.zmax = lim; } else { common.cmin = qlo; common.cmax = qhi; common.zmin = qlo; common.zmax = qhi; }
+  const cx = state.p[xk], cy = state.p[yk], cz = val(g, state.p, t);
+  const tlabel = t === 'c' ? 'Call' : t === 'p' ? 'Put' : 'Position';
+  $('chartTitle').innerHTML = `${tlabel} ${GBY[g].n} over ${PARAMS[xk].sym} × ${PARAMS[yk].sym}<span class="d">${GBY[g].d}</span>`;
+  $('chartHint').textContent = (state.type==='b' ? 'Showing the call (pick Put to switch). ' : '') + (heat ? 'Cross = current inputs. Color clipped to the 1st–99th percentile.' : 'Drag to rotate · scroll to zoom · dot = current inputs.');
+  if (heat){
+    const tr = Object.assign({type:'heatmap', zsmooth:'best'}, common);
+    delete tr.cmin; delete tr.cmax;
+    const pt = {x:[cx], y:[cy], type:'scatter', mode:'markers', marker:{symbol:'x-thin', size:14, line:{width:2.5, color:th.mark}}, hovertemplate:`Current: ${GBY[g].n} = ${cz.toPrecision(5)}<extra></extra>`, showlegend:false};
+    const layout = baseLayout(th, {xaxis:axis(th, AXLABEL[xk], PCT[xk]), yaxis:axis(th, AXLABEL[yk], PCT[yk]), margin:{l:64,r:10,t:10,b:48}});
+    Plotly.react('surface', [tr, pt], layout, CFG);
+  } else {
+    const tr = Object.assign({type:'surface', showscale:true, contours:{z:{show:true, usecolormap:true, project:{z:true}, width:1}}, lighting:{ambient:0.85, diffuse:0.4, specular:0.08}}, common);
+    delete tr.zmin; delete tr.zmax;
+    const pt = {x:[cx], y:[cy], z:[cz], type:'scatter3d', mode:'markers', marker:{size:5, color:th.mark, line:{color:th.panel, width:1}}, hovertemplate:`Current: ${GBY[g].n} = ${cz.toPrecision(5)}<extra></extra>`, showlegend:false};
+    const ax3 = (title, pct) => ({title:{text:title, font:{size:11, color:th.ink2}}, gridcolor:th.grid, zerolinecolor:th.line, linecolor:th.line, backgroundcolor:'rgba(0,0,0,0)', showbackground:false, tickfont:{color:th.muted, size:10}, tickformat: pct ? '.0%' : undefined});
+    const prev = document.getElementById('surface').layout;
+    const camera = prev && prev.scene && prev.scene.camera ? prev.scene.camera : {eye:{x:1.55, y:-1.55, z:0.95}};
+    const layout = baseLayout(th, {margin:{l:0,r:0,t:0,b:0}, scene:{xaxis:ax3(PARAMS[xk].sym, PCT[xk]), yaxis:ax3(PARAMS[yk].sym, PCT[yk]), zaxis:ax3(GBY[g].n), camera, aspectmode:'manual', aspectratio:{x:1.2,y:1.2,z:0.8}}, uirevision:'keep'});
+    Plotly.react('surface', [tr, pt], layout, CFG);
+  }
+}
+
+// ---------------- grid of all greeks ----------------
+const gridEl = $('grid'); const miniIds = {};
+G.forEach(g => {
+  const d = document.createElement('div'); d.className = 'mini'; d.tabIndex = 0; d.setAttribute('role','button');
+  d.innerHTML = `<div class="t">${g.n}<span></span></div><div class="p" id="mini-${g.k}"></div>`;
+  d.addEventListener('click', () => { state.greek = g.k; state.tab = 'curve'; syncControls(); schedule(); });
+  d.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); d.click(); } });
+  gridEl.appendChild(d); miniIds[g.k] = d;
+});
+function renderGrid(th){
+  $('chartTitle').innerHTML = `All Greeks vs ${PARAMS[state.x].name}<span class="d">${PARAMS[state.x].sym}</span>`;
+  $('chartHint').textContent = 'Click any panel to open it as the main curve.';
+  G.forEach(g => {
+    miniIds[g.k].querySelector('.t span').textContent = unitOf(g.k);
+    const traces = curveTraces(g.k, state.x, 120, th, true);
+    const layout = baseLayout(th, {margin:{l:44,r:8,t:4,b:24}, showlegend:false, hovermode:'x',
+      xaxis:Object.assign(axis(th,'',PCT[state.x]),{title:null, nticks:5}), yaxis:Object.assign(axis(th,''),{title:null, nticks:5, tickformat:'.2~g'}),
+      shapes:[{type:'line', xref:'x', yref:'paper', x0:state.p[state.x], x1:state.p[state.x], y0:0, y1:1, line:{color:th.muted, width:1, dash:'dot'}}]});
+    traces.forEach(t => { if (t.mode === 'lines') t.hovertemplate = `%{y:.4g}<extra>${t.name}</extra>`; });
+    Plotly.react('mini-'+g.k, traces, layout, {displayModeBar:false, responsive:true});
+  });
+}
+
+// ---------------- table + formula ----------------
+function renderTable(){
+  const R = bsm(state.p);
+  $('d12').innerHTML = `<span style="font-family:var(--math)"><i>d</i><sub>1</sub> = ${R.d1.toFixed(4)} · <i>d</i><sub>2</sub> = ${R.d2.toFixed(4)}</span>`;
+  const sc = k => state.units ? GBY[k].sc : 1;
+  const thead = document.querySelector('.bottom table thead tr');
+  if (state.type === 's'){
+    const cols = catColors();
+    thead.innerHTML = `<th>Greek</th><th>Position</th>${state.legs.map((l,i)=>`<th title="${legLabel(l)}"><span class="sw" style="background:${cols[i%cols.length]}"></span>Leg ${i+1}</th>`).join('')}<th>Unit</th>`;
+    $('tbody').innerHTML = G.map(g => {
+      const parts = state.legs.map(l => legRaw(l, g.k, state.p) * sc(g.k)); const tot = parts.reduce((a,b)=>a+b, 0);
+      return `<tr data-k="${g.k}" class="${g.k===state.greek?'sel':''}"><td>${g.n}<span class="sym">${g.d}</span></td>
+        <td class="n${tot<0?' neg':''}"><b>${fmtNum(tot)}</b></td>${parts.map(v=>`<td class="n${v<0?' neg':''}">${fmtNum(v)}</td>`).join('')}<td class="u">${unitOf(g.k)}</td></tr>`;
+    }).join('');
+    state.legs.forEach((l,i) => { const up = l.type==='s' ? state.p.S : legRaw(Object.assign({}, l, {qty:1}), 'price', state.p); const e1 = $('lp-'+i), e2 = $('lv-'+i); if (e1) e1.textContent = fmtNum(up); if (e2) e2.textContent = fmtNum(up * l.qty); });
+    const net = val('price', Object.assign({}, state.p), 's') / (state.units ? GBY.price.sc : 1);
+    $('netHint').textContent = net >= 0 ? `Net debit ${net.toFixed(2)} (you pay)` : `Net credit ${(-net).toFixed(2)} (you receive)`;
+    return;
+  }
+  thead.innerHTML = '<th>Greek</th><th>Call</th><th>Put</th><th>Unit</th>';
+  $('tbody').innerHTML = G.map(g => {
+    const c = R.c[g.k]*sc(g.k), p = R.p[g.k]*sc(g.k);
+    return `<tr data-k="${g.k}" class="${g.k===state.greek?'sel':''}"><td>${g.n}<span class="sym">${g.d}</span></td>
+      <td class="n${c<0?' neg':''}">${fmtNum(c)}</td><td class="n${p<0?' neg':''}">${fmtNum(p)}</td><td class="u">${unitOf(g.k)}</td></tr>`;
+  }).join('');
+}
+$('tbody').addEventListener('click', e => { const tr = e.target.closest('tr'); if (!tr) return; state.greek = tr.dataset.k; greekSel.value = state.greek; frozenY = null; if (state.tab==='grid') state.tab='curve'; syncControls(); schedule(); });
+
+function renderFormula(){
+  const g = GBY[state.greek];
+  const lines = (state.type === 's' ? `<div><span class="lab">Book</span>${g.n}<sub>position</sub> = Σ<sub><i>i</i></sub> <i>q<sub>i</sub></i> · ${g.n}(<i>K<sub>i</sub></i>, <i>T<sub>i</sub></i>) &nbsp;<span style="font-family:var(--sans);font-size:12px;color:var(--muted)">(stock leg: Δ = 1, others 0)</span></div>` : '') +
+    (g.f.b ? `<div><span class="lab">C & P</span>${g.f.b}</div>` : `<div><span class="lab">Call</span>${g.f.c}</div><div><span class="lab">Put</span>${g.f.p}</div>`);
+  const scaleNote = state.units && g.sc !== 1 ? `<p class="note">Trader units: raw formula × ${g.sc === 0.01 ? '1/100' : g.sc === 1/365 ? '1/365' : g.sc === 1e-4 ? '1/10,000' : g.sc === 1e-6 ? '1/1,000,000' : '1/(100·365)'}.</p>` : '';
+  const signNote = (g.k==='veta'||g.k==='color') ? `<p class="note">Sign: shown as ∂/∂t (calendar decay), consistent with theta and charm. Wikipedia states veta and color as ∂/∂τ, which flips the sign (自己推理, checked numerically by finite differences).</p>` : '';
+  $('fx').innerHTML = `<h3>${g.n} <span style="font-family:var(--math);font-weight:400;color:var(--ink-2)">${g.d}</span></h3>
+    <p class="def">${g.def}</p>
+    <div class="eq">${lines}
+      <div><span class="lab">where</span><i>d</i><sub>1</sub> = [ln(<i>S</i>/<i>K</i>) + (<i>r</i> − <i>q</i> + <i>σ</i>²/2)<i>T</i>] / (<i>σ</i>√<i>T</i>), &nbsp; <i>d</i><sub>2</sub> = <i>d</i><sub>1</sub> − <i>σ</i>√<i>T</i></div>
+    </div>
+    <ul class="vars">
+      <li><b>S</b> spot price</li><li><b>K</b> strike</li><li><b>T</b> time to expiry (years)</li>
+      <li><b>σ</b> annualized volatility</li><li><b>r</b> continuous risk-free rate</li><li><b>q</b> continuous dividend yield</li>
+      <li><b>N(·)</b> standard normal CDF</li>${state.type === 's' ? '<li><b>q<sub>i</sub></b> signed quantity of leg <i>i</i> (not the dividend yield)</li>' : ''}<li><b>n(·)</b> standard normal PDF</li><li><b>ν</b> vega, <b>Γ</b> gamma</li>
+    </ul>
+    ${scaleNote}${signNote}
+    <p class="intuit">${g.why}</p>
+    <p class="src">Source: <a href="https://en.wikipedia.org/wiki/Greeks_(finance)" target="_blank" rel="noopener">Greeks (finance), Wikipedia</a> · Hull, <i>Options, Futures, and Other Derivatives</i>, ch. 19. Every formula here was checked against finite differences.</p>`;
+}
+
+// ---------------- render loop ----------------
+let raf = null;
+function schedule(){ if (raf) return; raf = requestAnimationFrame(() => { raf = null; render(); save(); }); }
+function render(){
+  renderTable(); renderFormula();
+  if (!hasPlot) return;
+  const th = theme();
+  if (state.tab === 'curve') renderCurve(th);
+  else if (state.tab === 'surface') renderSurface(th, false);
+  else if (state.tab === 'heat') renderSurface(th, true);
+  else renderGrid(th);
+}
+// re-render on theme changes
+new MutationObserver(() => schedule()).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => schedule()); } catch(e){}
+
+buildLegRows(); syncControls(); render();
+}
+</script>
+
+</body>
+</html>
