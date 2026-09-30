@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Option payoff and P&L explorer: classic strategies, exact max profit, max loss and breakevens, risk-neutral probability of profit, and time decay toward expiry.">
+<meta name="description" content="Multi-leg option strategies: P&L at expiry and before it, exact max profit, max loss and breakevens, risk-neutral probability of profit, and position Greeks with a per-leg breakdown.">
 <style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style>
-<title>Payoff · Options Lab</title>
+<title>Strategies · Options Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="stylesheet" href="assets/lab.css">
 <style>
-/* Payoff page: numeric inputs on sliders, strategy list, chart, KPI tiles, leg editor */
+/* Strategies page: numeric inputs on sliders, strategy list, chart views, KPI tiles, leg editor, Greek breakdown */
 .sl input.num{width:92px}
 input.num{font:inherit;font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:3px 6px;text-align:right}
 .strikes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
@@ -25,10 +25,14 @@ input.num{font:inherit;font-family:var(--mono);font-size:12.5px;font-variant-num
 .strats button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);font-weight:500}
 .strats .v{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;font-weight:400}
 .tag{font-family:var(--mono);font-size:11px;color:var(--accent-ink);background:var(--accent-soft);border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:2px;font-weight:400}
-.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--ink-2)}
-.legend span::before{content:"";display:inline-block;width:18px;height:0;border-top:2px solid;vertical-align:middle;margin-right:6px}
-.legend .l-exp::before{border-color:var(--accent);border-top-width:2.5px}
-.legend .l-now::before{border-color:var(--now);border-top-style:dashed}
+.viewbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:8px 0 2px}
+.viewbar .seg{flex:none}
+.viewbar .seg button{padding:5px 14px}
+.viewbar select{width:auto;min-width:190px;padding:4px 8px;font-size:13px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink-2);margin-left:auto}
+.legend span::before{content:"";display:inline-block;width:18px;height:0;border-top:2px solid var(--c);vertical-align:middle;margin-right:6px}
+.legend span.dash::before{border-top-style:dashed}
+.legend span.bold::before{border-top-width:2.5px}
 .chart-box{position:relative;width:100%;margin-top:6px}
 canvas{display:block;width:100%;touch-action:none;cursor:crosshair}
 .readout{font-family:var(--mono);font-size:12px;color:var(--muted);min-height:18px;margin-top:4px;font-variant-numeric:tabular-nums}
@@ -51,11 +55,16 @@ table.legs td{padding:4px 6px}
 table.legs input,table.legs select{font:inherit;font-family:var(--mono);font-size:12.5px;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:4px 6px;width:auto}
 table.legs select{font-family:var(--sans)}
 table.legs input{width:64px}
-table.legs select:disabled{opacity:.4}
+table.legs select:disabled,table.legs input:disabled{opacity:.4}
 .legfoot{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:space-between;margin-top:8px}
-.bottom{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+.bottom{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}
 @media (max-width:1100px){.bottom{grid-template-columns:1fr}}
 tr.atm td{background:var(--panel-2)}
+td .sym{font-family:var(--math);font-style:italic;color:var(--ink-2);margin-left:6px}
+td.u{color:var(--muted);font-size:12px}
+#gbody tr{cursor:pointer}
+#gbody tr:hover{background:var(--panel-2)}
+#gbody tr.sel{background:var(--accent-soft)}
 .fx h3{margin:0 0 8px;font-size:15px}
 .eq .lab{width:64px}
 </style>
@@ -63,13 +72,13 @@ tr.atm td{background:var(--panel-2)}
 <body>
 <header class="site"><div class="site-in">
   <a class="brand" href="./"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="0.5" y="0.5" width="21" height="21" rx="5" fill="var(--accent)"/><path d="M4 16 L9 16 L17 6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Options Lab<small>Black–Scholes–Merton</small></a>
-  <nav aria-label="Tools"><a href="./">Greeks</a><a href="payoff.html" aria-current="page">Payoff &amp; P&amp;L</a></nav>
+  <nav aria-label="Tools"><a href="./">Greeks</a><a href="strategies.html" aria-current="page">Strategies</a></nav>
 </div></header>
 
 <div class="wrap">
   <header class="top">
-    <h1>Payoff Lab<span class="sub">P&amp;L(S<sub>T</sub>)</span></h1>
-    <p class="tagline">Pick a strategy or build your own legs. Premiums come from BSM; max profit, max loss and breakevens are solved exactly. Drag the time slider to watch the curve converge to the expiry payoff.</p>
+    <h1>Strategy Lab<span class="sub">P&amp;L(S<sub>T</sub>) · Σ n<sub>i</sub> Greek<sub>i</sub></span></h1>
+    <p class="tagline">Pick a strategy or build your own legs. See its P&amp;L at expiry and before it, exact max profit, max loss and breakevens, and every position Greek broken down by leg.</p>
   </header>
 
   <div class="layout">
@@ -91,11 +100,17 @@ tr.atm td{background:var(--panel-2)}
 
     <main>
       <section class="card">
-        <div class="charthead">
-          <h2 id="stratName">Long Call</h2>
-          <div class="legend"><span class="l-exp">P&amp;L at expiry</span><span class="l-now" id="lgNow">P&amp;L today</span></div>
+        <div class="charthead"><h2 id="stratName">Long Call</h2><span class="hint" id="chartHint"></span></div>
+        <div class="viewbar">
+          <div class="seg" id="viewSeg" role="group" aria-label="Chart view">
+            <button type="button" data-v="pnl" aria-pressed="true">P&amp;L</button>
+            <button type="button" data-v="greek" aria-pressed="false">Greeks</button>
+          </div>
+          <select id="greekSel" aria-label="Greek to plot" hidden></select>
+          <label class="chk" id="legsChkWrap" hidden><input type="checkbox" id="legsChk" checked> Each leg</label>
+          <div class="legend" id="legend"></div>
         </div>
-        <div class="chart-box"><canvas id="chart" role="img" aria-label="Profit and loss against the stock price at expiry"></canvas></div>
+        <div class="chart-box"><canvas id="chart" role="img" aria-label="Strategy chart against the stock price"></canvas></div>
         <div class="readout" id="readout"></div>
         <div class="time">
           <label for="elapsed">Days passed</label>
@@ -109,25 +124,22 @@ tr.atm td{background:var(--panel-2)}
       <section class="kpis" id="kpis" aria-label="Position summary"></section>
 
       <section class="card">
-        <div class="charthead"><h2>Legs</h2><span class="hint">Editing a leg switches to Custom. Cash flow is negative when you pay.</span></div>
+        <div class="charthead"><h2>Legs</h2><span class="hint">Editing a leg switches to Custom. Cash flow is negative when you pay. Leave expiry blank to follow T.</span></div>
         <div class="tblwrap"><table class="legs">
-          <thead><tr><th>Side</th><th>Qty</th><th>Instrument</th><th>Strike</th><th>Price today</th><th>Cash flow</th><th>Δ</th><th>Θ / day</th><th></th></tr></thead>
+          <thead><tr><th>Leg</th><th>Side</th><th>Qty</th><th>Instrument</th><th>Strike</th><th>Expiry (d)</th><th>Price today</th><th>Cash flow</th><th>Δ</th><th>Θ / day</th><th></th></tr></thead>
           <tbody id="legBody"></tbody>
         </table></div>
-        <div class="legfoot">
-          <button class="btn" id="addLeg" type="button">+ Add leg</button>
-          <a class="hint" href="./" style="color:var(--accent-ink)">Full Greek curves and surfaces for a multi-leg book → Greeks Lab, Strategy mode</a>
-        </div>
+        <div class="legfoot"><button class="btn" id="addLeg" type="button">+ Add leg</button><span class="hint" id="netHint"></span></div>
       </section>
 
       <div class="bottom">
         <section class="card">
-          <div class="charthead"><h2>BSM quotes</h2><span class="hint">Put–call parity check</span></div>
+          <div class="charthead"><h2>Position Greeks</h2><span class="hint" id="gHint"></span></div>
           <div class="tblwrap"><table>
-            <thead><tr><th>Strike</th><th>Call</th><th>Put</th><th>Call Δ</th><th>Put Δ</th><th>C − P</th><th>Se<sup>−qT</sup> − Ke<sup>−rT</sup></th></tr></thead>
-            <tbody id="quotes"></tbody>
+            <thead><tr id="ghead"></tr></thead>
+            <tbody id="gbody"></tbody>
           </table></div>
-          <p class="note">The last two columns match for every strike: that is put–call parity, <span style="font-family:var(--math)"><i>C</i> − <i>P</i> = <i>S</i>e<sup>−<i>qT</i></sup> − <i>K</i>e<sup>−<i>rT</i></sup></span>.</p>
+          <p class="note">Click a row to plot it. Trader units: vega per 1 vol pt, rates per 1%, time Greeks per calendar day (∂/∂t = −∂/∂T).</p>
         </section>
         <section class="card fx">
           <h3>How the numbers are computed</h3>
@@ -135,25 +147,36 @@ tr.atm td{background:var(--panel-2)}
             <div><span class="lab">Call</span><i>C</i> = <i>S</i>e<sup>−<i>qT</i></sup><i>N</i>(<i>d</i><sub>1</sub>) − <i>K</i>e<sup>−<i>rT</i></sup><i>N</i>(<i>d</i><sub>2</sub>)</div>
             <div><span class="lab">Put</span><i>P</i> = <i>K</i>e<sup>−<i>rT</i></sup><i>N</i>(−<i>d</i><sub>2</sub>) − <i>S</i>e<sup>−<i>qT</i></sup><i>N</i>(−<i>d</i><sub>1</sub>)</div>
             <div><span class="lab">where</span><i>d</i><sub>1</sub> = [ln(<i>S</i>/<i>K</i>) + (<i>r</i> − <i>q</i> + <i>σ</i>²/2)<i>T</i>] / (<i>σ</i>√<i>T</i>), &nbsp;<i>d</i><sub>2</sub> = <i>d</i><sub>1</sub> − <i>σ</i>√<i>T</i></div>
-            <div><span class="lab">P&amp;L</span>P&amp;L(<i>S<sub>T</sub></i>) = Σ<sub><i>i</i></sub> <i>n<sub>i</sub></i> · [ payoff<sub><i>i</i></sub>(<i>S<sub>T</sub></i>) − <i>V<sub>i</sub></i> ]</div>
-            <div><span class="lab">P(win)</span>ℙ(<i>S<sub>T</sub></i> &gt; <i>x</i>) = <i>N</i>( [ln(<i>S</i>/<i>x</i>) + (<i>r</i> − <i>q</i> − <i>σ</i>²/2)<i>T</i>] / (<i>σ</i>√<i>T</i>) )</div>
+            <div><span class="lab">P&amp;L</span>P&amp;L(<i>S<sub>T</sub></i>) = Σ<sub><i>i</i></sub> <i>n<sub>i</sub></i> · [ <i>V<sub>i</sub></i>(<i>S<sub>T</sub></i>, <i>T<sub>i</sub></i> − <i>T</i><sub>front</sub>) − <i>V<sub>i</sub></i>(<i>S</i>, <i>T<sub>i</sub></i>) ]</div>
+            <div><span class="lab">Book</span>Greek<sub>position</sub> = Σ<sub><i>i</i></sub> <i>n<sub>i</sub></i> · Greek<sub><i>i</i></sub> &nbsp;<span style="font-family:var(--sans);font-size:12px;color:var(--muted)">(stock: Δ = 1, others 0)</span></div>
+            <div><span class="lab">P(win)</span>ℙ(<i>S<sub>T</sub></i> &gt; <i>x</i>) = <i>N</i>( [ln(<i>S</i>/<i>x</i>) + (<i>r</i> − <i>q</i> − <i>σ</i>²/2)<i>T</i><sub>front</sub>] / (<i>σ</i>√<i>T</i><sub>front</sub>) )</div>
           </div>
           <ul class="vars">
             <li><b>C, P</b> call and put price</li>
-            <li><b>S</b> spot today; <b>S<sub>T</sub></b> spot at expiry</li>
+            <li><b>S</b> spot today; <b>S<sub>T</sub></b> spot at the front expiry</li>
             <li><b>K</b> strike; <b>x</b> a breakeven level</li>
-            <li><b>T</b> time to expiry (days / 365)</li>
+            <li><b>T<sub>i</sub></b> time to expiry of leg <i>i</i> (days / 365)</li>
+            <li><b>T<sub>front</sub></b> earliest leg expiry</li>
             <li><b>σ</b> annualized volatility</li>
             <li><b>r</b> continuous risk-free rate</li>
             <li><b>q</b> continuous dividend yield</li>
             <li><b>N(·)</b> standard normal CDF</li>
             <li><b>n<sub>i</sub></b> signed quantity of leg <i>i</i> (+ bought, − sold)</li>
-            <li><b>V<sub>i</sub></b> BSM price of leg <i>i</i> today</li>
+            <li><b>V<sub>i</sub>(S, τ)</b> BSM value of leg <i>i</i> with τ years left (intrinsic at τ = 0)</li>
           </ul>
-          <p class="note">European options. Premiums are not carried forward to expiry and dividends on the stock leg are ignored in P&amp;L. The dashed curve re-prices every leg with BSM at the remaining time, same σ, r and q. Max profit, max loss and breakevens are solved exactly on the piecewise-linear expiry payoff, not read off a grid. P(profit) is under the risk-neutral lognormal distribution, not a real-world forecast. Θ is per calendar day, vega per 1 vol point, rho per 1% rate.</p>
-          <p class="src">Source: Hull, <i>Options, Futures, and Other Derivatives</i>, ch. 11–12 (strategies, parity) and ch. 15 (BSM).</p>
+          <p class="note">European options. Premiums are not carried forward and dividends on the stock leg are ignored in P&amp;L. The dashed curve re-prices every leg with BSM on the chosen day, same σ, r and q. When every option leg shares one expiry, max profit, max loss and breakevens are solved exactly on the piecewise-linear payoff; with mixed expiries (calendar) the later legs keep time value, so they are found on a fine grid and marked ≈. P(profit) is under the risk-neutral lognormal distribution, not a real-world forecast.</p>
+          <p class="src">Source: Hull, <i>Options, Futures, and Other Derivatives</i>, ch. 11–12 (strategies, parity), ch. 15 (BSM), ch. 19 (Greeks).</p>
         </section>
       </div>
+
+      <section class="card">
+        <div class="charthead"><h2>BSM quotes at T</h2><span class="hint">Put–call parity check</span></div>
+        <div class="tblwrap"><table>
+          <thead><tr><th>Strike</th><th>Call</th><th>Put</th><th>Call Δ</th><th>Put Δ</th><th>C − P</th><th>Se<sup>−qT</sup> − Ke<sup>−rT</sup></th></tr></thead>
+          <tbody id="quotes"></tbody>
+        </table></div>
+        <p class="note">The last two columns match for every strike: that is put–call parity, <span style="font-family:var(--math)"><i>C</i> − <i>P</i> = <i>S</i>e<sup>−<i>qT</i></sup> − <i>K</i>e<sup>−<i>rT</i></sup></span>.</p>
+      </section>
     </main>
   </div>
 </div>
@@ -165,20 +188,21 @@ const $ = id => document.getElementById(id);
 
 // ---------------- inputs ----------------
 const PARAMS = {
-  S0:    {sym:'S',  name:'Spot',            min:100, max:5000, step:10,   num:10},
-  sigma: {sym:'σ',  name:'Volatility, %',   min:1,   max:150,  step:0.5,  num:1},
-  r:     {sym:'r',  name:'Risk-free rate, %', min:-2, max:15,  step:0.05, num:0.25},
-  q:     {sym:'q',  name:'Dividend yield, %', min:0,  max:10,  step:0.05, num:0.25},
-  days:  {sym:'T',  name:'Days to expiry',  min:1,   max:730,  step:1,    num:1},
+  S0:    {sym:'S', name:'Spot',              min:100, max:5000, step:10,   num:10},
+  sigma: {sym:'σ', name:'Volatility, %',     min:1,   max:150,  step:0.5,  num:1},
+  r:     {sym:'r', name:'Risk-free rate, %', min:-2,  max:15,   step:0.05, num:0.25},
+  q:     {sym:'q', name:'Dividend yield, %', min:0,   max:10,   step:0.05, num:0.25},
+  days:  {sym:'T', name:'Days to expiry',    min:1,   max:730,  step:1,    num:1},
 };
 const PKEYS = Object.keys(PARAMS), KS = ['K1','K2','K3','K4'];
 const DEFAULTS = {S0:2500, sigma:25, r:6, q:0, days:30, K1:2400, K2:2450, K3:2550, K4:2600};
+const GM = Object.fromEntries(GREEK_META.map(g => [g.k, g]));
 
-// legs: [type, signed qty, strike key]; 'ATM' strikes at the current spot
+// legs: [type, signed qty, strike key, expiry multiple of T (optional)]; 'ATM' strikes at the current spot
 const GROUPS = [
-  ['Directional', ['long_call','long_put','bull_call','bear_put','risk_rev']],
+  ['Directional', ['long_call','long_put','bull_call','bear_put','risk_rev','ratio']],
   ['Stock + options', ['covered_call','protective_put','collar']],
-  ['Volatility', ['straddle','short_straddle','strangle','butterfly','iron_condor','reverse_condor']],
+  ['Volatility', ['straddle','short_straddle','strangle','butterfly','iron_condor','reverse_condor','calendar']],
   ['', ['custom']],
 ];
 const PRESETS = {
@@ -192,6 +216,8 @@ const PRESETS = {
     d:'Buy the K₃ put, sell the K₂ put. Pays a net debit. Max profit = (K₃ − K₂) − debit below K₂; max loss = debit above K₃.'},
   risk_rev: {n:'Risk Reversal', v:'bullish', legs:[['put',-1,'K2'],['call',1,'K3']],
     d:'Sell the K₂ put to fund the K₃ call. Behaves like synthetic long stock outside the strikes, flat in between. Its price is a direct read on skew.'},
+  ratio: {n:'1×2 Call Ratio Spread', v:'mild bull', legs:[['call',1,'ATM'],['call',-2,'K4']],
+    d:'Buy one ATM call, sell two K₄ calls. Often near zero cost. Best payoff at S_T = K₄; above K₄ the extra short call makes the loss unlimited.'},
   covered_call: {n:'Covered Call', v:'mild bull', legs:[['stock',1,null],['call',-1,'K3']],
     d:'Own the stock and sell a call at K₃. The premium cushions the downside a little and the upside is capped at K₃ − S + premium. By put–call parity its expiry shape is a short put.'},
   protective_put: {n:'Protective Put', v:'hedged', legs:[['stock',1,null],['put',1,'K2']],
@@ -210,21 +236,30 @@ const PRESETS = {
     d:'Sell the K₂ put and K₃ call, buy the K₁ put and K₄ call as wings. Collects a net credit. Max profit = credit while K₂ ≤ S_T ≤ K₃; max loss = wing width − credit. Short gamma and vega, long theta.'},
   reverse_condor: {n:'Reverse Iron Condor', v:'long vol', legs:[['put',-1,'K1'],['put',1,'K2'],['call',1,'K3'],['call',-1,'K4']],
     d:'<span class="warn">Watch the signs.</span> This is the iron condor with every leg flipped: it buys the inner K₂ put and K₃ call and sells the wings, so it pays a debit and loses the most when the stock stays between K₂ and K₃. Easy to plot by mistake under the name “Iron Condor”.'},
+  calendar: {n:'Call Calendar Spread', v:'pin + vega', legs:[['call',-1,'ATM'],['call',1,'ATM',2]],
+    d:'Sell the ATM call expiring at T, buy the same strike expiring at 2T. Wins if the stock sits near K at the front expiry: the short call dies worthless while the long call keeps time value. Long vega, short gamma. The chart\'s “expiry” is the front expiry, and the stats are found numerically.'},
   custom: {n:'Custom', v:'your legs', legs:null,
     d:'Your own combination of legs. Edit, add or remove legs in the table below.'},
 };
 
-const state = Object.assign({}, DEFAULTS, {elapsed:0, preset:'long_call', legs:[], hoverS:null});
-try { const s = JSON.parse(localStorage.getItem('options-lab-payoff') || 'null'); if (s && PRESETS[s.preset]) Object.assign(state, s, {hoverS:null}); } catch(e){}
-function save(){ try { const {hoverS, ...s} = state; localStorage.setItem('options-lab-payoff', JSON.stringify(s)); } catch(e){} }
-function loadPreset(k){ state.preset = k; if (PRESETS[k].legs) state.legs = PRESETS[k].legs.map(([type, qty, key]) => ({type, qty, k: key || 'K3'})); }
+const state = Object.assign({}, DEFAULTS, {elapsed:0, preset:'long_call', legs:[], view:'pnl', greek:'gamma', showLegs:true, hoverS:null});
+try { const s = JSON.parse(localStorage.getItem('options-lab-strategies') || 'null'); if (s && PRESETS[s.preset]) Object.assign(state, s, {hoverS:null}); } catch(e){}
+if (!GM[state.greek]) state.greek = 'gamma';
+function save(){ try { const {hoverS, ...s} = state; localStorage.setItem('options-lab-strategies', JSON.stringify(s)); } catch(e){} }
+function loadPreset(k){
+  state.preset = k;
+  if (PRESETS[k].legs) state.legs = PRESETS[k].legs.map(([type, qty, key, m]) => ({type, qty, k: key || 'K3', days: m ? Math.round(state.days * m) : null}));
+}
 if (!state.legs || !state.legs.length) loadPreset(state.preset === 'custom' ? 'long_call' : state.preset);
 
 // ---------------- pricing ----------------
 const strikeOf = k => k === 'ATM' ? state.S0 : state[k];
-const yrs = () => state.days / 365;
 const mkt = () => ({r: state.r/100, sig: state.sigma/100, q: state.q/100});
-const ZERO = {price:0, delta:0, gamma:0, vega:0, theta:0, rho:0};
+const legDays = l => l.days || state.days;                       // blank expiry follows the T input
+const optLegs = () => state.legs.filter(l => l.type !== 'stock');
+const frontDays = () => { const o = optLegs(); return o.length ? Math.min(...o.map(legDays)) : state.days; };
+const mixed = () => new Set(optLegs().map(legDays)).size > 1;
+const ZERO = Object.fromEntries(GREEK_META.map(g => [g.k, 0]));
 function quote(type, S, K, T){
   if (T <= 1e-10) {
     const itm = type === 'call' ? S > K : S < K;
@@ -233,16 +268,24 @@ function quote(type, S, K, T){
   if (S <= 0) return type === 'call' ? ZERO : Object.assign({}, ZERO, {price: K*Math.exp(-mkt().r*T), delta:-1});
   return bsm(Object.assign({S, K, T}, mkt()))[type === 'call' ? 'c' : 'p'];
 }
-function legQuote(l, S, T){ return l.type === 'stock' ? Object.assign({}, ZERO, {price:S, delta:1}) : quote(l.type, S, strikeOf(l.k), T); }
-const cost0 = () => state.legs.reduce((a,l) => a + l.qty * legQuote(l, state.S0, yrs()).price, 0);
-const pnl = (S, T, c0) => state.legs.reduce((a,l) => a + l.qty * legQuote(l, S, T).price, 0) - c0;
+// one leg, unit quantity, valued `day` days from today
+function legQuote(l, S, day){
+  if (l.type === 'stock') return Object.assign({}, ZERO, {price:S, delta:1});
+  return quote(l.type, S, strikeOf(l.k), Math.max(0, legDays(l) - day) / 365);
+}
+const cost0 = () => state.legs.reduce((a,l) => a + l.qty * legQuote(l, state.S0, 0).price, 0);
+const pnl = (S, day, c0) => state.legs.reduce((a,l) => a + l.qty * legQuote(l, S, day).price, 0) - c0;
+const book = (S, day, k) => state.legs.reduce((a,l) => a + l.qty * legQuote(l, S, day)[k], 0) * GM[k].sc;
 
-// exact expiry analysis: the payoff is piecewise linear with kinks at the strikes
+// expiry analysis at the front expiry. One expiry: payoff is piecewise linear with kinks at the strikes, solved exactly.
+// Mixed expiries: later legs keep BSM time value, so scan a fine grid instead.
 function analyse(c0){
-  const f = S => pnl(S, 0, c0);
-  const kinks = [...new Set(state.legs.filter(l => l.type !== 'stock').map(l => strikeOf(l.k)))].filter(k => k > 0).sort((a,b) => a-b);
-  const pts = [0, ...kinks], vals = pts.map(f);
-  const slopeR = state.legs.reduce((a,l) => a + (l.type === 'put' ? 0 : l.qty), 0);
+  const fd = frontDays(), f = S => pnl(S, fd, c0);
+  const slopeR = state.legs.reduce((a,l) => a + (l.type === 'put' ? 0 : l.qty), 0);   // calls and stock dominate as S → ∞
+  let pts, approx = mixed();
+  if (!approx) pts = [0, ...[...new Set(optLegs().map(l => strikeOf(l.k)))].filter(k => k > 0).sort((a,b) => a-b)];
+  else { const hi = Math.max(3*state.S0, ...optLegs().map(l => 2*strikeOf(l.k))); pts = Array.from({length:3001}, (_, i) => hi * i / 3000); }
+  const vals = pts.map(f);
   let maxP = Math.max(...vals), maxL = Math.min(...vals);
   if (slopeR > 1e-12) maxP = Infinity;
   if (slopeR < -1e-12) maxL = -Infinity;
@@ -252,27 +295,38 @@ function analyse(c0){
     if ((fa < 0 && fb > 0) || (fa > 0 && fb < 0)) be.push(a + (b-a) * (-fa) / (fb-fa));
     else if (Math.abs(fb) < 1e-9 && i + 2 < pts.length && Math.sign(fa) * Math.sign(vals[i+2]) < 0) be.push(b);
   }
-  const last = pts[pts.length-1], fl = vals[vals.length-1];
-  if (Math.abs(slopeR) > 1e-12) { const x = last - fl / slopeR; if (x > last + 1e-9) be.push(x); }
+  if (!approx) { const last = pts[pts.length-1], fl = vals[vals.length-1]; if (Math.abs(slopeR) > 1e-12) { const x = last - fl / slopeR; if (x > last + 1e-9) be.push(x); } }
   const bes = be.filter((x,i,arr) => i === 0 || Math.abs(x - arr[i-1]) > 1e-6);
-  // risk-neutral P(profit): sum the lognormal mass over intervals where expiry P&L > 0
-  const {r, sig, q} = mkt(), T = yrs(), vs = sig * Math.sqrt(T);
+  // risk-neutral P(profit): lognormal mass of S at the front expiry over the intervals where P&L > 0
+  const {r, sig, q} = mkt(), T = fd / 365, vs = sig * Math.sqrt(T);
   const above = x => x <= 0 ? 1 : !isFinite(x) ? 0 : ncdf((Math.log(state.S0/x) + (r - q - 0.5*sig*sig)*T) / vs);
   const cuts = [0, ...bes, Infinity];
   let pp = 0;
   for (let i = 0; i < cuts.length - 1; i++) {
-    const a = cuts[i], b = cuts[i+1];
-    const mid = isFinite(b) ? (a + b) / 2 : a * 1.5 + 1;
+    const a = cuts[i], b = cuts[i+1], mid = isFinite(b) ? (a + b) / 2 : a * 1.5 + 1;
     if (f(mid) > 1e-9) pp += above(a) - above(b);
   }
-  return {maxP, maxL, be: bes, pp};
+  return {maxP, maxL, be: bes, pp, approx};
 }
 
 // ---------------- formatting ----------------
 const fmt = (v, d=2) => v.toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
 const sgn = (v, d=2) => (v > 0 ? '+' : v < 0 ? '−' : '') + fmt(Math.abs(v), d);
 const cls = v => v > 1e-9 ? 'pos' : v < -1e-9 ? 'los' : '';
-const money = v => v === Infinity ? '<span class="pos">Unlimited</span>' : v === -Infinity ? '<span class="los">Unlimited</span>' : `<span class="${cls(v)}">${sgn(v)}</span>`;
+const money = (v, ap) => v === Infinity ? '<span class="pos">Unlimited</span>' : v === -Infinity ? '<span class="los">Unlimited</span>' : `<span class="${cls(v)}">${ap ? '≈ ' : ''}${sgn(v)}</span>`;
+function fmtG(v){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a < 5e-13) return '0';
+  if (a >= 1000) return v.toFixed(1);
+  if (a >= 1) return v.toFixed(4);
+  if (a >= 1e-4) return v.toFixed(5);
+  return v.toExponential(3);
+}
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const catColors = () => css('--cat').split(',').map(x => x.trim());
+const kLabel = k => k === 'ATM' ? 'ATM' : 'K' + '₀₁₂₃₄'[+k.slice(1)];
+function legLabel(l){ const q = (l.qty > 0 ? '+' : '−') + Math.abs(l.qty); return l.type === 'stock' ? `${q} stock` : `${q} ${l.type} ${kLabel(l.k)} · ${legDays(l)}d`; }
 
 // ---------------- controls ----------------
 const ins = {}, nums = {};
@@ -288,21 +342,22 @@ PKEYS.forEach(k => {
     state[k] = v;
     if (from !== ins[k]) ins[k].value = v;
     if (from !== nums[k]) nums[k].value = v;
-    if (k === 'days') { $('elapsed').max = v; if (state.elapsed > v) state.elapsed = v; $('elapsed').value = state.elapsed; }
+    if (k === 'days') { syncElapsed(); renderLegs(); }
     update();
   };
   ins[k].addEventListener('input', () => set(parseFloat(ins[k].value), ins[k]));
   nums[k].addEventListener('input', () => set(parseFloat(nums[k].value), nums[k]));
 });
 KS.forEach(k => $(k).addEventListener('input', e => { const v = parseFloat(e.target.value); if (!isFinite(v) || v <= 0) return; state[k] = v; update(); }));
+function syncElapsed(){ const el = $('elapsed'), fd = frontDays(); el.max = fd; state.elapsed = Math.min(state.elapsed, fd); el.value = state.elapsed; }
 function syncInputs(){
   PKEYS.forEach(k => { ins[k].value = state[k]; nums[k].value = state[k]; });
   KS.forEach(k => { $(k).value = state[k]; });
-  const el = $('elapsed'); el.max = state.days; state.elapsed = Math.min(state.elapsed, state.days); el.value = state.elapsed;
+  syncElapsed();
 }
-$('resetBtn').addEventListener('click', () => { stopPlay(); Object.assign(state, DEFAULTS, {elapsed:0}); syncInputs(); update(); });
+$('resetBtn').addEventListener('click', () => { stopPlay(); Object.assign(state, DEFAULTS, {elapsed:0}); if (state.preset !== 'custom') loadPreset(state.preset); syncInputs(); renderLegs(); update(); });
 $('centerBtn').addEventListener('click', () => {
-  // keep the wing spacing relative to spot: K = S ± 4% / ± 2% (same as the 2500 defaults), rounded to a tidy grid
+  // wings at S ± 2% and ± 4% (the spacing of the 2500 defaults), rounded to a tidy grid
   const S = state.S0, step = Math.pow(10, Math.max(0, Math.floor(Math.log10(S)) - 2)) * 5;
   const rd = x => Math.round(x / step) * step;
   Object.assign(state, {K1: rd(S*0.96), K2: rd(S*0.98), K3: rd(S*1.02), K4: rd(S*1.04)}); syncInputs(); update();
@@ -310,21 +365,33 @@ $('centerBtn').addEventListener('click', () => {
 $('elapsed').addEventListener('input', e => { state.elapsed = parseFloat(e.target.value); update(); });
 
 let playRaf = null;
-function stopPlay(){ if (playRaf) cancelAnimationFrame(playRaf); playRaf = null; $('playBtn').textContent = '▶ Play decay'; }
+function stopPlay(){ if (!playRaf) return; cancelAnimationFrame(playRaf); playRaf = null; $('playBtn').textContent = '▶ Play decay'; update(); }
 $('playBtn').addEventListener('click', () => {
   if (playRaf) return stopPlay();
-  if (state.elapsed >= state.days) state.elapsed = 0;
+  const fd = frontDays();
+  if (state.elapsed >= fd) state.elapsed = 0;
   $('playBtn').textContent = '■ Stop';
   let last = performance.now();
-  const dur = 4000;   // whole life of the option in ~4 s
   const step = now => {
-    state.elapsed = Math.min(state.days, state.elapsed + (now - last) / dur * state.days); last = now;
+    state.elapsed = Math.min(fd, state.elapsed + (now - last) / 4000 * fd); last = now;   // whole life in ~4 s
     $('elapsed').value = state.elapsed; update(true);
-    if (state.elapsed >= state.days) return stopPlay();
+    if (state.elapsed >= fd) return stopPlay();
     playRaf = requestAnimationFrame(step);
   };
   playRaf = requestAnimationFrame(step);
 });
+
+// chart view
+GREEK_META.forEach(g => $('greekSel').add(new Option(`${g.n}  (${g.d})`, g.k)));
+function syncView(){
+  document.querySelectorAll('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === state.view)));
+  $('greekSel').hidden = state.view !== 'greek'; $('greekSel').value = state.greek;
+  $('legsChkWrap').hidden = state.view !== 'greek'; $('legsChk').checked = state.showLegs;
+}
+$('viewSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.view = b.dataset.v; syncView(); update(); });
+$('greekSel').addEventListener('change', e => { state.greek = e.target.value; update(); });
+$('legsChk').addEventListener('change', e => { state.showLegs = e.target.checked; update(); });
+$('gbody').addEventListener('click', e => { const tr = e.target.closest('tr[data-k]'); if (!tr) return; state.greek = tr.dataset.k; state.view = 'greek'; syncView(); update(); });
 
 function renderStrats(){
   $('strats').innerHTML = GROUPS.map(([h, keys]) => `<div class="g">${h ? `<div class="gh">${h}</div>` : ''}${keys.map(k =>
@@ -333,21 +400,23 @@ function renderStrats(){
 $('strats').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.k === 'custom') state.preset = 'custom'; else loadPreset(b.dataset.k);
-  renderStrats(); renderLegs(); update();
+  syncElapsed(); renderStrats(); renderLegs(); update();
 });
 function toCustom(){ if (state.preset !== 'custom') { state.preset = 'custom'; renderStrats(); } }
 
 function renderLegs(){
+  const cols = catColors();
   const opt = (v, cur, label) => `<option value="${v}"${v === cur ? ' selected' : ''}>${label || v}</option>`;
-  const klabel = k => k === 'ATM' ? 'ATM (S)' : k.replace(/\d/, d => '₀₁₂₃₄'[d]);
   $('legBody').innerHTML = state.legs.map((l,i) => `<tr data-i="${i}">
+    <td><span class="sw" style="background:${cols[i % cols.length]}"></span>${i+1}</td>
     <td><select data-f="side" aria-label="Side of leg ${i+1}">${opt('buy', l.qty >= 0 ? 'buy' : 'sell', 'Buy')}${opt('sell', l.qty >= 0 ? 'buy' : 'sell', 'Sell')}</select></td>
     <td><input data-f="qty" type="number" min="0" step="1" value="${Math.abs(l.qty)}" aria-label="Quantity of leg ${i+1}"></td>
     <td><select data-f="type" aria-label="Instrument of leg ${i+1}">${opt('call', l.type, 'Call')}${opt('put', l.type, 'Put')}${opt('stock', l.type, 'Stock')}</select></td>
-    <td><select data-f="k" aria-label="Strike of leg ${i+1}"${l.type === 'stock' ? ' disabled' : ''}>${[...KS,'ATM'].map(k => opt(k, l.k, klabel(k))).join('')}</select></td>
+    <td><select data-f="k" aria-label="Strike of leg ${i+1}"${l.type === 'stock' ? ' disabled' : ''}>${[...KS,'ATM'].map(k => opt(k, l.k, k === 'ATM' ? 'ATM (S)' : kLabel(k))).join('')}</select></td>
+    <td><input data-f="days" type="number" min="1" step="1" value="${l.days || ''}" placeholder="${state.days}"${l.type === 'stock' ? ' disabled' : ''} aria-label="Expiry of leg ${i+1} in days"></td>
     <td class="n lp"></td><td class="n lc"></td><td class="n ld"></td><td class="n lt"></td>
     <td><button class="xbtn" type="button" data-f="del" aria-label="Remove leg ${i+1}">×</button></td></tr>`).join('')
-    || `<tr><td colspan="9" style="color:var(--muted)">No legs. Add one or pick a strategy.</td></tr>`;
+    || `<tr><td colspan="11" style="color:var(--muted)">No legs. Add one or pick a strategy.</td></tr>`;
 }
 $('legBody').addEventListener('change', e => {
   const tr = e.target.closest('tr[data-i]'); if (!tr) return;
@@ -356,55 +425,63 @@ $('legBody').addEventListener('change', e => {
   if (f === 'qty') { const q = Math.max(0, parseFloat(e.target.value) || 0); l.qty = (l.qty < 0 ? -1 : 1) * q; }
   if (f === 'type') l.type = e.target.value;
   if (f === 'k') l.k = e.target.value;
-  toCustom(); renderLegs(); update();
+  if (f === 'days') { const d = Math.round(parseFloat(e.target.value)); l.days = isFinite(d) && d >= 1 ? d : null; }
+  toCustom(); syncElapsed(); renderLegs(); update();
 });
 $('legBody').addEventListener('click', e => {
   if (e.target.dataset.f !== 'del') return;
-  state.legs.splice(+e.target.closest('tr').dataset.i, 1); toCustom(); renderLegs(); update();
+  state.legs.splice(+e.target.closest('tr').dataset.i, 1); toCustom(); syncElapsed(); renderLegs(); update();
 });
-$('addLeg').addEventListener('click', () => { if (state.legs.length >= 8) return; state.legs.push({type:'call', qty:1, k:'ATM'}); toCustom(); renderLegs(); update(); });
+$('addLeg').addEventListener('click', () => { if (state.legs.length >= 8) return; state.legs.push({type:'call', qty:1, k:'ATM', days:null}); toCustom(); syncElapsed(); renderLegs(); update(); });
 
 // ---------------- render ----------------
 let A = null, C0 = 0, saveT = null;
 function update(fast){
   C0 = cost0(); A = analyse(C0);
-  const P = PRESETS[state.preset], T = yrs();
+  const P = PRESETS[state.preset], fd = frontDays(), day = state.elapsed, left = fd - day, mx = mixed();
   $('stratName').innerHTML = `${P.n}<span class="tag">${P.v}</span>`;
   $('stratDesc').innerHTML = P.d;
-  const left = state.days - state.elapsed;
-  $('elapsedOut').textContent = left <= 1e-9 ? `day ${Math.round(state.days)} · expiry` : `day ${Math.round(state.elapsed)} · ${Math.round(left)}d left`;
-  $('lgNow').textContent = left <= 1e-9 ? 'P&L today (hidden at expiry)' : state.elapsed > 0 ? `P&L after ${Math.round(state.elapsed)}d` : 'P&L today';
+  $('elapsedOut').textContent = left <= 1e-9 ? `day ${Math.round(fd)} · ${mx ? 'front ' : ''}expiry` : `day ${Math.round(day)} · ${Math.round(left)}d left`;
   draw();
   if (fast) return;
 
   document.querySelectorAll('#legBody tr[data-i]').forEach(tr => {
-    const l = state.legs[+tr.dataset.i], q = legQuote(l, state.S0, T), cf = -l.qty * q.price;
+    const l = state.legs[+tr.dataset.i], q = legQuote(l, state.S0, 0), cf = -l.qty * q.price;
     tr.querySelector('.lp').textContent = fmt(q.price);
     tr.querySelector('.lc').innerHTML = `<span class="${cls(cf)}">${sgn(cf)}</span>`;
     tr.querySelector('.ld').textContent = sgn(l.qty * q.delta, 3);
     tr.querySelector('.lt').textContent = sgn(l.qty * q.theta / 365);
   });
+  $('netHint').textContent = C0 >= 0 ? `Net debit ${fmt(C0)} (you pay)` : `Net credit ${fmt(-C0)} (you receive)`;
 
-  const g = state.legs.reduce((a,l) => { const q = legQuote(l, state.S0, T); ['delta','gamma','vega','theta','rho'].forEach(k => a[k] += l.qty * q[k]); return a; }, {delta:0,gamma:0,vega:0,theta:0,rho:0});
+  const at = mx ? 'at front expiry' : 'at expiry', ap = A.approx;
   const net = C0 > 1e-9 ? `<span class="los">${fmt(C0)}</span>` : C0 < -1e-9 ? `<span class="pos">${fmt(-C0)}</span>` : '0.00';
+  const dayTxt = day > 0 ? ` · day ${Math.round(day)}` : '';
   const K = [
     ['Net premium', net, C0 > 1e-9 ? 'debit, you pay' : C0 < -1e-9 ? 'credit, you receive' : 'zero cost'],
-    ['Max profit', money(A.maxP), 'at expiry'],
-    ['Max loss', money(A.maxL), 'at expiry'],
-    ['Breakeven', A.be.length ? A.be.map(x => fmt(x)).join('<br>') : 'None', A.be.length > 1 ? `${A.be.length} levels` : 'at expiry'],
-    ['P(profit)', (A.pp*100).toFixed(1) + '%', 'risk-neutral, at expiry'],
+    ['Max profit', money(A.maxP, ap), at],
+    ['Max loss', money(A.maxL, ap), at],
+    ['Breakeven', A.be.length ? A.be.map(x => (ap ? '≈ ' : '') + fmt(x)).join('<br>') : 'None', A.be.length > 1 ? `${A.be.length} levels` : at],
+    ['P(profit)', (A.pp*100).toFixed(1) + '%', 'risk-neutral, ' + at],
   ];
-  const Gk = [
-    ['Delta <i>Δ</i>', sgn(g.delta, 3), 'per $1 S'],
-    ['Gamma <i>Γ</i>', sgn(g.gamma, 5), 'per $1 S'],
-    ['Vega <i>ν</i>', sgn(g.vega/100), 'per 1 vol pt'],
-    ['Theta <i>Θ</i>', `<span class="${cls(g.theta)}">${sgn(g.theta/365)}</span>`, 'per day'],
-    ['Rho <i>ρ</i>', sgn(g.rho/100), 'per 1% r'],
-  ];
+  const Gk = [['delta','Delta <i>Δ</i>',3], ['gamma','Gamma <i>Γ</i>',5], ['vega','Vega <i>ν</i>',2], ['theta','Theta <i>Θ</i>',2], ['rho','Rho <i>ρ</i>',2]].map(([k, lab, d]) => {
+    const v = book(state.S0, day, k);
+    return [lab, k === 'theta' ? `<span class="${cls(v)}">${sgn(v, d)}</span>` : sgn(v, d), GM[k].u + dayTxt];
+  });
   $('kpis').innerHTML = K.map(([k,v,s]) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')
     + Gk.map(([k,v,s]) => `<div class="kpi greek"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
 
-  const {r, q} = mkt();
+  // position Greeks, broken down by leg
+  const cols = catColors();
+  $('gHint').textContent = `At S = ${fmt(state.S0, 0)}, ${day > 0 ? `day ${Math.round(day)}` : 'today'}`;
+  $('ghead').innerHTML = `<th>Greek</th><th>Position</th>${state.legs.map((l,i) => `<th title="${legLabel(l)}"><span class="sw" style="background:${cols[i % cols.length]}"></span>${i+1}</th>`).join('')}<th>Unit</th>`;
+  $('gbody').innerHTML = GREEK_META.map(g => {
+    const parts = state.legs.map(l => l.qty * legQuote(l, state.S0, day)[g.k] * g.sc), tot = parts.reduce((a,b) => a + b, 0);
+    return `<tr data-k="${g.k}" class="${state.view === 'greek' && g.k === state.greek ? 'sel' : ''}"><td>${g.n}<span class="sym">${g.d}</span></td>
+      <td class="n${tot < 0 ? ' neg' : ''}"><b>${fmtG(tot)}</b></td>${parts.map(v => `<td class="n${v < 0 ? ' neg' : ''}">${fmtG(v)}</td>`).join('')}<td class="u">${g.u}</td></tr>`;
+  }).join('');
+
+  const {r, q} = mkt(), T = state.days / 365;
   const rows = [['K₁', state.K1], ['K₂', state.K2], ['ATM', state.S0], ['K₃', state.K3], ['K₄', state.K4]].sort((a,b) => a[1] - b[1]);
   $('quotes').innerHTML = rows.map(([lab, Kx]) => {
     const c = quote('call', state.S0, Kx, T), p = quote('put', state.S0, Kx, T);
@@ -415,6 +492,11 @@ function update(fast){
 }
 
 function niceStep(range, n){ const raw = range / n, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p; return (m < 1.5 ? 1 : m < 3 ? 2 : m < 7 ? 5 : 10) * p; }
+function tick(v, st){
+  if (Math.abs(v) < st * 1e-6) return '0';
+  const d = Math.max(0, -Math.floor(Math.log10(st)));
+  return Math.abs(v) < 1e-3 && v !== 0 ? v.toExponential(1) : fmt(v, Math.min(d, 6));
+}
 
 let Gm = null;
 function draw(){
@@ -423,19 +505,39 @@ function draw(){
   const dpr = window.devicePixelRatio || 1;
   cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr); cv.style.height = H + 'px';
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-  const cs = getComputedStyle(document.documentElement), col = n => cs.getPropertyValue(n).trim();
-  const c = {ink:col('--ink'), ink2:col('--ink-2'), muted:col('--muted'), grid:col('--grid'), line:col('--line'), panel:col('--panel'), accent:col('--accent'), profit:col('--profit'), loss:col('--loss'), now:col('--now')};
+  const c = {ink:css('--ink'), ink2:css('--ink-2'), muted:css('--muted'), grid:css('--grid'), panel:css('--panel'), accent:css('--accent'), profit:css('--profit'), loss:css('--loss'), now:css('--now')};
+  const cols = catColors();
   const mono = '11px "IBM Plex Mono", ui-monospace, monospace';
-  const M = {l:62, r:18, t:16, b:44};
+  const M = {l:66, r:18, t:16, b:44};
+  const pnlView = state.view === 'pnl', fd = frontDays(), day = state.elapsed, mx = mixed();
 
-  const used = state.legs.filter(l => l.type !== 'stock').map(l => strikeOf(l.k));
+  const used = optLegs().map(l => strikeOf(l.k));
   const ref = [state.S0, ...used, ...A.be];
   const x0 = Math.max(0, Math.min(state.S0*0.8, Math.min(...ref)*0.94)), x1 = Math.max(state.S0*1.2, Math.max(...ref)*1.06);
-  const n = 400, xs = [], ye = [], yn = [];
-  const Tn = Math.max(0, (state.days - state.elapsed) / 365), showNow = Tn > 1e-10;
-  for (let i = 0; i <= n; i++) { const S = x0 + (x1-x0)*i/n; xs.push(S); ye.push(pnl(S, 0, C0)); if (showNow) yn.push(pnl(S, Tn, C0)); }
-  let lo = Math.min(0, ...ye, ...yn), hi = Math.max(0, ...ye, ...yn);
-  if (hi - lo < 1e-6) { hi += 1; lo -= 1; }
+  const n = 400, xs = Array.from({length:n+1}, (_, i) => x0 + (x1-x0)*i/n);
+  // series: [ys, color, width, dash]
+  const series = []; let fillYs = null, yLabel, legend;
+  if (pnlView) {
+    const showNow = day < fd - 1e-9;
+    const ye = xs.map(S => pnl(S, fd, C0)); fillYs = ye;
+    if (showNow) series.push([xs.map(S => pnl(S, day, C0)), c.now, 1.8, [6,4]]);
+    series.push([ye, c.accent, 2.5, null]);
+    yLabel = 'P&L';
+    legend = [[c.accent, mx ? 'P&L at front expiry' : 'P&L at expiry', 'bold'], ...(showNow ? [[c.now, day > 0 ? `P&L on day ${Math.round(day)}` : 'P&L today', 'dash']] : [])];
+    $('chartHint').textContent = 'Shaded: profit and loss at expiry · ring = breakeven';
+  } else {
+    const g = GM[state.greek];
+    if (state.showLegs && state.legs.length > 1) state.legs.forEach((l, i) => series.push([xs.map(S => l.qty * legQuote(l, S, day)[g.k] * g.sc), cols[i % cols.length], 1.3, [5,4]]));
+    series.push([xs.map(S => book(S, day, g.k)), c.accent, 2.5, null]);
+    yLabel = `${g.n} (${g.u})`;
+    legend = [[c.accent, 'Position', 'bold'], ...(state.showLegs && state.legs.length > 1 ? state.legs.map((l, i) => [cols[i % cols.length], legLabel(l), 'dash']) : [])];
+    $('chartHint').textContent = `${g.d} vs spot, ${day > 0 ? `on day ${Math.round(day)}` : 'today'}`;
+  }
+  $('legend').innerHTML = legend.map(([col, t, k]) => `<span class="${k}" style="--c:${col}">${t}</span>`).join('');
+
+  const allY = series.flatMap(s => s[0]).filter(isFinite);
+  let lo = Math.min(0, ...allY), hi = Math.max(0, ...allY);
+  if (hi - lo < 1e-9) { const m = Math.max(1e-6, Math.abs(hi)); hi += m; lo -= m; }
   const pad = (hi-lo)*0.08; lo -= pad; hi += pad;
   const pw = W - M.l - M.r, ph = H - M.t - M.b;
   const sx = S => M.l + (S-x0)/(x1-x0)*pw, sy = y => M.t + (hi-y)/(hi-lo)*ph;
@@ -447,7 +549,7 @@ function draw(){
   for (let y = Math.ceil(lo/ys)*ys; y <= hi; y += ys) {
     const py = Math.round(sy(y)) + 0.5;
     ctx.strokeStyle = c.grid; ctx.beginPath(); ctx.moveTo(M.l, py); ctx.lineTo(W-M.r, py); ctx.stroke();
-    ctx.fillStyle = c.muted; ctx.fillText(fmt(Math.abs(y) < ys*1e-6 ? 0 : y, ys < 1 ? 1 : 0), M.l-8, py);
+    ctx.fillStyle = c.muted; ctx.fillText(tick(y, ys), M.l-8, py);
   }
   const xst = niceStep(x1-x0, Math.max(3, Math.floor(pw/90)));
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -457,17 +559,18 @@ function draw(){
     ctx.fillStyle = c.muted; ctx.fillText(fmt(x, 0), px, M.t+ph+6);
   }
   ctx.fillStyle = c.ink2; ctx.font = '12px "IBM Plex Sans", system-ui, sans-serif';
-  ctx.fillText('Stock price at expiry, S_T', M.l + pw/2, M.t+ph+24);
-  ctx.save(); ctx.translate(14, M.t + ph/2); ctx.rotate(-Math.PI/2); ctx.textBaseline = 'middle'; ctx.fillText('P&L', 0, 0); ctx.restore();
+  ctx.fillText(pnlView ? (mx ? 'Stock price at front expiry, S_T' : 'Stock price at expiry, S_T') : 'Stock price S', M.l + pw/2, M.t+ph+24);
+  ctx.save(); ctx.translate(13, M.t + ph/2); ctx.rotate(-Math.PI/2); ctx.textBaseline = 'middle'; ctx.fillText(yLabel, 0, 0); ctx.restore();
   ctx.font = mono;
 
-  // profit / loss shading under the expiry curve
   const zy = sy(0);
-  const path = new Path2D(); path.moveTo(sx(xs[0]), zy); xs.forEach((S,i) => path.lineTo(sx(S), sy(ye[i]))); path.lineTo(sx(xs[n]), zy); path.closePath();
-  ctx.save(); ctx.globalAlpha = 0.13;
-  ctx.save(); ctx.beginPath(); ctx.rect(M.l, M.t, pw, zy-M.t); ctx.clip(); ctx.fillStyle = c.profit; ctx.fill(path); ctx.restore();
-  ctx.save(); ctx.beginPath(); ctx.rect(M.l, zy, pw, M.t+ph-zy); ctx.clip(); ctx.fillStyle = c.loss; ctx.fill(path); ctx.restore();
-  ctx.restore();
+  if (fillYs) {
+    const path = new Path2D(); path.moveTo(sx(xs[0]), zy); xs.forEach((S,i) => path.lineTo(sx(S), sy(fillYs[i]))); path.lineTo(sx(xs[n]), zy); path.closePath();
+    ctx.save(); ctx.globalAlpha = 0.13;
+    ctx.save(); ctx.beginPath(); ctx.rect(M.l, M.t, pw, zy-M.t); ctx.clip(); ctx.fillStyle = c.profit; ctx.fill(path); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.rect(M.l, zy, pw, M.t+ph-zy); ctx.clip(); ctx.fillStyle = c.loss; ctx.fill(path); ctx.restore();
+    ctx.restore();
+  }
   ctx.strokeStyle = c.muted; ctx.beginPath(); ctx.moveTo(M.l, Math.round(zy)+0.5); ctx.lineTo(W-M.r, Math.round(zy)+0.5); ctx.stroke();
 
   // spot line and strike ticks
@@ -476,37 +579,43 @@ function draw(){
   ctx.fillStyle = c.ink2; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('S = ' + fmt(state.S0, 0), sx(state.S0)+5, M.t+2);
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
   const tagged = new Set();
-  state.legs.forEach(l => {
-    if (l.type === 'stock' || l.k === 'ATM' || tagged.has(l.k)) return; tagged.add(l.k);
+  optLegs().forEach(l => {
+    if (l.k === 'ATM' || tagged.has(l.k)) return; tagged.add(l.k);
     const px = sx(strikeOf(l.k));
     ctx.strokeStyle = c.accent; ctx.beginPath(); ctx.moveTo(px, M.t+ph); ctx.lineTo(px, M.t+ph-7); ctx.stroke();
-    ctx.fillStyle = c.accent; ctx.fillText('K' + l.k.slice(1).replace(/\d/, d => '₀₁₂₃₄'[d]), px, M.t+ph-9);
+    ctx.fillStyle = c.accent; ctx.fillText(kLabel(l.k), px, M.t+ph-9);
   });
 
-  if (showNow) {
-    ctx.strokeStyle = c.now; ctx.lineWidth = 1.8; ctx.setLineDash([6,4]); ctx.beginPath();
-    xs.forEach((S,i) => i ? ctx.lineTo(sx(S), sy(yn[i])) : ctx.moveTo(sx(S), sy(yn[i]))); ctx.stroke(); ctx.setLineDash([]);
+  ctx.lineJoin = 'round';
+  series.forEach(([yv, col, w, dash]) => {
+    ctx.strokeStyle = col; ctx.lineWidth = w; ctx.setLineDash(dash || []); ctx.beginPath();
+    xs.forEach((S,i) => i ? ctx.lineTo(sx(S), sy(yv[i])) : ctx.moveTo(sx(S), sy(yv[i]))); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  if (pnlView) {
+    ctx.textBaseline = 'top'; ctx.lineWidth = 2;
+    A.be.filter(x => x >= x0 && x <= x1).forEach(x => {
+      ctx.fillStyle = c.panel; ctx.strokeStyle = c.ink; ctx.beginPath(); ctx.arc(sx(x), zy, 4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = c.ink2; ctx.fillText(fmt(x, 0), sx(x), zy + 7);
+    });
   }
-  ctx.strokeStyle = c.accent; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.beginPath();
-  xs.forEach((S,i) => i ? ctx.lineTo(sx(S), sy(ye[i])) : ctx.moveTo(sx(S), sy(ye[i]))); ctx.stroke();
-
-  // breakevens: ring marker + value label
-  ctx.textBaseline = 'top'; ctx.lineWidth = 2;
-  A.be.filter(x => x >= x0 && x <= x1).forEach(x => {
-    ctx.fillStyle = c.panel; ctx.strokeStyle = c.ink; ctx.beginPath(); ctx.arc(sx(x), zy, 4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = c.ink2; ctx.fillText(fmt(x, 0), sx(x), zy + 7);
-  });
 
   const S = state.hoverS ?? state.S0;
+  const main = pnlView ? pnl(S, fd, C0) : book(S, day, state.greek);
   if (state.hoverS != null) {
     const px = sx(S);
     ctx.strokeStyle = c.ink; ctx.globalAlpha = 0.3; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, M.t); ctx.lineTo(px, M.t+ph); ctx.stroke(); ctx.globalAlpha = 1;
-    ctx.fillStyle = c.accent; ctx.beginPath(); ctx.arc(px, sy(pnl(S, 0, C0)), 4.5, 0, Math.PI*2); ctx.fill();
-    if (showNow) { ctx.fillStyle = c.now; ctx.beginPath(); ctx.arc(px, sy(pnl(S, Tn, C0)), 4.5, 0, Math.PI*2); ctx.fill(); }
+    ctx.fillStyle = c.accent; ctx.beginPath(); ctx.arc(px, sy(main), 4.5, 0, Math.PI*2); ctx.fill();
+    if (pnlView && day < fd - 1e-9) { ctx.fillStyle = c.now; ctx.beginPath(); ctx.arc(px, sy(pnl(S, day, C0)), 4.5, 0, Math.PI*2); ctx.fill(); }
   }
-  const e = pnl(S, 0, C0), nw = showNow ? pnl(S, Tn, C0) : null;
-  $('readout').innerHTML = `${state.hoverS == null ? 'At spot · ' : ''}S<sub>T</sub> <b>${fmt(S)}</b> · expiry P&amp;L <b class="${cls(e)}">${sgn(e)}</b>`
-    + (nw != null ? ` · ${state.elapsed > 0 ? `day ${Math.round(state.elapsed)}` : 'today'} P&amp;L <b class="${cls(nw)}">${sgn(nw)}</b>` : '');
+  const head = `${state.hoverS == null ? 'At spot · ' : ''}S <b>${fmt(S)}</b>`;
+  if (pnlView) {
+    const nw = day < fd - 1e-9 ? pnl(S, day, C0) : null;
+    $('readout').innerHTML = `${head} · ${mx ? 'front ' : ''}expiry P&amp;L <b class="${cls(main)}">${sgn(main)}</b>` + (nw != null ? ` · ${day > 0 ? `day ${Math.round(day)}` : 'today'} P&amp;L <b class="${cls(nw)}">${sgn(nw)}</b>` : '');
+  } else {
+    $('readout').innerHTML = `${head} · position ${GM[state.greek].n.toLowerCase()} <b>${fmtG(main)}</b> ${GM[state.greek].u}`;
+  }
 }
 
 const cv = $('chart');
@@ -517,11 +626,12 @@ cv.addEventListener('pointermove', ev => {
 });
 cv.addEventListener('pointerleave', () => { state.hoverS = null; draw(); });
 new ResizeObserver(() => draw()).observe(cv.parentElement);
-try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw); } catch(e){}
-new MutationObserver(draw).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+const retheme = () => { renderLegs(); update(); };
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', retheme); } catch(e){}
+new MutationObserver(retheme).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
 
-syncInputs(); renderStrats(); renderLegs(); update();
+syncInputs(); syncView(); renderStrats(); renderLegs(); update();
 })();
 </script>
 </body>

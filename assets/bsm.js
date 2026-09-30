@@ -57,3 +57,24 @@ function bsm(p) {
   };
   return { c, p: pu, d1, d2 };
 }
+
+// Greek names, notation and trader-unit scale (raw BSM value × sc), shared by pages that list every Greek.
+const GREEK_META = [
+  {k:'price', n:'Value', d:'V', sc:1, u:'$'},
+  {k:'delta', n:'Delta', d:'∂V/∂S', sc:1, u:'per $1 S'},
+  {k:'gamma', n:'Gamma', d:'∂²V/∂S²', sc:1, u:'per $1 S'},
+  {k:'vega', n:'Vega', d:'∂V/∂σ', sc:0.01, u:'per 1 vol pt'},
+  {k:'theta', n:'Theta', d:'∂V/∂t', sc:1/365, u:'per day'},
+  {k:'rho', n:'Rho', d:'∂V/∂r', sc:0.01, u:'per 1% r'},
+  {k:'epsilon', n:'Epsilon (Psi)', d:'∂V/∂q', sc:0.01, u:'per 1% q'},
+  {k:'vanna', n:'Vanna', d:'∂²V/∂S∂σ', sc:0.01, u:'Δ per 1 vol pt'},
+  {k:'charm', n:'Charm', d:'∂Δ/∂t', sc:1/365, u:'Δ per day'},
+  {k:'vomma', n:'Vomma (Volga)', d:'∂²V/∂σ²', sc:1e-4, u:'vega per 1 vol pt'},
+  {k:'veta', n:'Veta', d:'∂ν/∂t', sc:1e-2/365, u:'vega per day'},
+  {k:'speed', n:'Speed', d:'∂³V/∂S³', sc:1, u:'Γ per $1 S'},
+  {k:'zomma', n:'Zomma', d:'∂Γ/∂σ', sc:0.01, u:'Γ per 1 vol pt'},
+  {k:'color', n:'Color', d:'∂Γ/∂t', sc:1/365, u:'Γ per day'},
+  {k:'ultima', n:'Ultima', d:'∂³V/∂σ³', sc:1e-6, u:'vomma per 1 vol pt'},
+  {k:'dualDelta', n:'Dual Delta', d:'∂V/∂K', sc:1, u:'per $1 K'},
+  {k:'dualGamma', n:'Dual Gamma', d:'∂²V/∂K²', sc:1, u:'per $1 K'},
+];

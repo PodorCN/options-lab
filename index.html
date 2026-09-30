@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Interactive Black-Scholes-Merton Greeks explorer: 17 Greeks vs any input, 3D surfaces, heatmaps, multi-leg strategies.">
+<meta name="description" content="Interactive Black-Scholes-Merton Greeks explorer: 17 Greeks vs any input, 3D surfaces, heatmaps and an all-Greeks grid.">
 <style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Greeks · Options Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,20 +33,12 @@ td.u{color:var(--muted);font-size:12px}
 .fx h3{margin:0 0 2px;font-size:15px}
 .fx .def{color:var(--ink-2);font-size:13px;margin:0 0 10px}
 .fallback{padding:40px;text-align:center;color:var(--muted)}
-.legbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 10px}
-.legbar select{width:auto;min-width:200px}
-table.legs td{padding:4px 6px}
-table.legs input,table.legs select{font:inherit;font-family:var(--mono);font-size:12.5px;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:4px 6px;width:88px}
-table.legs select{font-family:var(--sans);width:92px}
-table.legs input:disabled{opacity:.4}
-.legfoot{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:space-between;margin-top:8px}
-.xlink{font-size:12.5px;color:var(--accent-ink)}
 </style>
 </head>
 <body>
 <header class="site"><div class="site-in">
   <a class="brand" href="./"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="0.5" y="0.5" width="21" height="21" rx="5" fill="var(--accent)"/><path d="M4 16 L9 16 L17 6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Options Lab<small>Black–Scholes–Merton</small></a>
-  <nav aria-label="Tools"><a href="./" aria-current="page">Greeks</a><a href="payoff.html">Payoff &amp; P&amp;L</a></nav>
+  <nav aria-label="Tools"><a href="./" aria-current="page">Greeks</a><a href="strategies.html">Strategies</a></nav>
 </div></header>
 
 <div class="wrap">
@@ -63,7 +55,6 @@ table.legs input:disabled{opacity:.4}
           <button id="tCall" data-v="c" aria-pressed="true">Call</button>
           <button id="tPut" data-v="p" aria-pressed="false">Put</button>
           <button id="tBoth" data-v="b" aria-pressed="false">Both</button>
-          <button id="tStrat" data-v="s" aria-pressed="false">Strategy</button>
         </div>
       </div>
       <div class="grp">
@@ -108,23 +99,6 @@ table.legs input:disabled{opacity:.4}
         <div id="curve"></div>
         <div id="surface" hidden></div>
         <div id="grid" class="gridwrap" hidden></div>
-      </section>
-
-      <section class="card" id="legsCard" hidden>
-        <div class="charthead"><h2>Strategy legs</h2><span class="hint"><span id="netHint"></span> · <a class="xlink" href="payoff.html">Max profit, max loss &amp; breakevens in Payoff Lab →</a></span></div>
-        <div class="legbar">
-          <label class="lbl" for="presetSel">Preset</label>
-          <select id="presetSel"></select>
-          <button class="btn" id="addLeg" type="button">+ Add leg</button>
-        </div>
-        <div class="tblwrap"><table class="legs">
-          <thead><tr><th>Leg</th><th>Type</th><th>Qty (+ long, − short)</th><th>Strike K</th><th>Expiry (days)</th><th>Unit price</th><th>Position value</th><th></th></tr></thead>
-          <tbody id="legBody"></tbody>
-        </table></div>
-        <div class="legfoot">
-          <label class="chk"><input type="checkbox" id="showLegsChk" checked> Show each leg on the curve</label>
-          <span class="hint">S, σ, r, q apply to every leg. The T slider is the front leg's time to expiry; later legs keep their gap in days.</span>
-        </div>
       </section>
 
       <div class="bottom">
@@ -259,43 +233,10 @@ const OVERLAY = {
 // ---------------- state ----------------
 const state = { type:'c', greek:'delta', x:'S', y:'T', ov:'none', tab:'curve', units:true, freeze:false,
   p:{S:100,K:100,T:182/365,sig:0.20,r:0.04,q:0} };
-state.legs = null; state.preset = 'straddle'; state.showLegs = true;
 const DEF = JSON.parse(JSON.stringify(state.p));
-try { const saved = JSON.parse(localStorage.getItem('bsgl') || 'null'); if (saved) Object.assign(state, saved, {p:Object.assign({}, state.p, saved.p)}); } catch(e){}
-function save(){ try{ localStorage.setItem('bsgl', JSON.stringify({type:state.type,greek:state.greek,x:state.x,y:state.y,ov:state.ov,tab:state.tab,units:state.units,p:state.p,legs:state.legs,preset:state.preset,showLegs:state.showLegs})); }catch(e){} }
+try { const saved = JSON.parse(localStorage.getItem('bsgl') || 'null'); if (saved) Object.assign(state, saved, {p:Object.assign({}, state.p, saved.p)}); if (!['c','p','b'].includes(state.type)) state.type = 'c'; } catch(e){}
+function save(){ try{ localStorage.setItem('bsgl', JSON.stringify({type:state.type,greek:state.greek,x:state.x,y:state.y,ov:state.ov,tab:state.tab,units:state.units,p:state.p})); }catch(e){} }
 
-// ---------------- strategy (multi-leg) ----------------
-const PRESETS = {
-  longCall:   {n:'Long call',              f:(S,D)=>[['c', 1,S,D]]},
-  longPut:    {n:'Long put',               f:(S,D)=>[['p', 1,S,D]]},
-  coveredCall:{n:'Covered call',           f:(S,D)=>[['s', 1],['c',-1,S*1.05,D]]},
-  protPut:    {n:'Protective put',         f:(S,D)=>[['s', 1],['p', 1,S*0.95,D]]},
-  collar:     {n:'Collar',                 f:(S,D)=>[['s', 1],['p', 1,S*0.95,D],['c',-1,S*1.05,D]]},
-  bullCall:   {n:'Bull call spread',       f:(S,D)=>[['c', 1,S,D],['c',-1,S*1.1,D]]},
-  bearPut:    {n:'Bear put spread',        f:(S,D)=>[['p', 1,S,D],['p',-1,S*0.9,D]]},
-  straddle:   {n:'Long straddle',          f:(S,D)=>[['c', 1,S,D],['p', 1,S,D]]},
-  shortStraddle:{n:'Short straddle',       f:(S,D)=>[['c',-1,S,D],['p',-1,S,D]]},
-  strangle:   {n:'Long strangle',          f:(S,D)=>[['c', 1,S*1.05,D],['p', 1,S*0.95,D]]},
-  butterfly:  {n:'Long call butterfly',    f:(S,D)=>[['c', 1,S*0.9,D],['c',-2,S,D],['c', 1,S*1.1,D]]},
-  condor:     {n:'Short iron condor',      f:(S,D)=>[['p', 1,S*0.9,D],['p',-1,S*0.95,D],['c',-1,S*1.05,D],['c', 1,S*1.1,D]]},
-  calendar:   {n:'Call calendar spread',   f:(S,D)=>[['c',-1,S,D],['c', 1,S,D*2]]},
-  riskRev:    {n:'Risk reversal',          f:(S,D)=>[['c', 1,S*1.05,D],['p',-1,S*0.95,D]]},
-  ratio:      {n:'1×2 call ratio spread',  f:(S,D)=>[['c', 1,S,D],['c',-2,S*1.1,D]]},
-  custom:     {n:'Custom', f:null},
-};
-function buildPreset(key){
-  const S = state.p.S, D = Math.max(2, Math.round(state.p.T*365));
-  return PRESETS[key].f(S, D).map(([type,qty,K,days]) => ({type, qty, K: K ? Math.round(K) : Math.round(S), days: days ? Math.round(days) : D}));
-}
-if (!state.legs || !state.legs.length) state.legs = buildPreset(state.preset in PRESETS && state.preset !== 'custom' ? state.preset : 'straddle');
-function optLegs(){ return state.legs.filter(l => l.type !== 's'); }
-function frontDays(){ const o = optLegs(); return o.length ? Math.min(...o.map(l => l.days)) : Math.round(state.p.T*365); }
-function legRaw(leg, g, p){
-  if (leg.type === 's') return leg.qty * (g === 'price' ? p.S : g === 'delta' ? 1 : 0);
-  const T = p.T + (leg.days - frontDays())/365;
-  return leg.qty * bsm(Object.assign({}, p, {K:leg.K, T}))[leg.type][g];
-}
-function legLabel(l){ const q = (l.qty>0?'+':'−') + Math.abs(l.qty); return l.type === 's' ? `${q} Stock` : `${q} ${l.type==='c'?'Call':'Put'} ${l.K} · ${l.days}d`; }
 
 // ---------------- controls ----------------
 const $ = id => document.getElementById(id);
@@ -323,52 +264,11 @@ function syncControls(){
   $('curve').hidden = state.tab !== 'curve'; $('surface').hidden = !(state.tab === 'surface' || state.tab === 'heat'); $('grid').hidden = state.tab !== 'grid';
   $('ySelGrp').hidden = !(state.tab === 'surface' || state.tab === 'heat');
   $('ovGrp').hidden = (state.tab === 'surface' || state.tab === 'heat');
-  const strat = state.type === 's';
-  $('legsCard').hidden = !strat;
-  rows.K.hidden = strat;
-  rows.T.querySelector('small').textContent = strat ? 'Front leg expiry' : 'Time to expiry';
-  [xSel, ySel, ovSel].forEach(sel => [...sel.options].forEach(o => { if (o.value === 'K') o.disabled = strat; }));
-  if (strat){ if (state.x === 'K') { state.x = 'S'; xSel.value = 'S'; } if (state.y === 'K' || state.y === state.x) { state.y = state.x === 'T' ? 'S' : 'T'; ySel.value = state.y; } if (state.ov === 'K') { state.ov = 'none'; ovSel.value = 'none'; } }
-  $('presetSel').value = state.preset; $('showLegsChk').checked = state.showLegs;
 }
 document.querySelectorAll('#typeSeg button').forEach(b => b.addEventListener('click', () => {
-  const wasStrat = state.type === 's'; state.type = b.dataset.v;
-  if (state.type === 's' && !wasStrat) state.p.T = frontDays()/365;
+  state.type = b.dataset.v;
   syncControls(); frozenY = null; schedule(); }));
 
-// leg editor
-const presetSel = $('presetSel');
-Object.entries(PRESETS).forEach(([k,v]) => presetSel.add(new Option(v.n, k)));
-function catColors(){ return css('--cat').split(',').map(x=>x.trim()); }
-function buildLegRows(){
-  const cols = catColors();
-  $('legBody').innerHTML = state.legs.map((l,i) => `<tr data-i="${i}">
-    <td><span class="sw" style="background:${cols[i % cols.length]}"></span>${i+1}</td>
-    <td><select data-f="type" aria-label="Leg ${i+1} type"><option value="c"${l.type==='c'?' selected':''}>Call</option><option value="p"${l.type==='p'?' selected':''}>Put</option><option value="s"${l.type==='s'?' selected':''}>Stock</option></select></td>
-    <td><input data-f="qty" type="number" step="1" value="${l.qty}" aria-label="Leg ${i+1} quantity"></td>
-    <td><input data-f="K" type="number" step="1" min="1" value="${l.K}" ${l.type==='s'?'disabled':''} aria-label="Leg ${i+1} strike"></td>
-    <td><input data-f="days" type="number" step="1" min="1" value="${l.days}" ${l.type==='s'?'disabled':''} aria-label="Leg ${i+1} expiry in days"></td>
-    <td class="n" id="lp-${i}"></td><td class="n" id="lv-${i}"></td>
-    <td><button class="xbtn" data-del="${i}" type="button" aria-label="Remove leg ${i+1}">×</button></td></tr>`).join('');
-}
-function legsChanged(structural){
-  state.preset = 'custom';
-  const o = optLegs(); if (o.length) state.p.T = frontDays()/365;
-  if (structural) buildLegRows();
-  syncControls(); frozenY = null; schedule();
-}
-$('legBody').addEventListener('input', e => {
-  const tr = e.target.closest('tr'), f = e.target.dataset.f; if (!tr || !f) return;
-  const l = state.legs[+tr.dataset.i];
-  if (f === 'type') { l.type = e.target.value; if (!l.K) l.K = Math.round(state.p.S); if (!l.days) l.days = frontDays(); return legsChanged(true); }
-  const v = +e.target.value; if (!isFinite(v) || e.target.value === '') return;
-  if (f === 'qty') l.qty = v; if (f === 'K' && v > 0) l.K = v; if (f === 'days' && v >= 1) l.days = Math.round(v);
-  legsChanged(false);
-});
-$('legBody').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (!b) return; state.legs.splice(+b.dataset.del, 1); if (!state.legs.length) state.legs.push({type:'c', qty:1, K:Math.round(state.p.S), days:Math.round(state.p.T*365)}); legsChanged(true); });
-$('addLeg').addEventListener('click', () => { if (state.legs.length >= 8) return; state.legs.push({type:'c', qty:1, K:Math.round(state.p.S), days:frontDays()}); legsChanged(true); });
-presetSel.addEventListener('change', () => { if (presetSel.value === 'custom') return; state.legs = buildPreset(presetSel.value); const pr = presetSel.value; legsChanged(true); state.preset = pr; presetSel.value = pr; save(); });
-$('showLegsChk').addEventListener('change', e => { state.showLegs = e.target.checked; schedule(); });
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { state.tab = b.dataset.tab; syncControls(); schedule(); }));
 greekSel.addEventListener('change', () => { state.greek = greekSel.value; frozenY = null; schedule(); });
 xSel.addEventListener('change', () => { state.x = xSel.value; if (state.x === state.y) { state.y = state.x === 'T' ? 'S' : 'T'; ySel.value = state.y; } frozenY = null; schedule(); });
@@ -376,7 +276,7 @@ ySel.addEventListener('change', () => { state.y = ySel.value; if (state.x === st
 ovSel.addEventListener('change', () => { state.ov = ovSel.value; frozenY = null; schedule(); });
 $('unitsChk').addEventListener('change', e => { state.units = e.target.checked; frozenY = null; schedule(); });
 $('freezeChk').addEventListener('change', e => { state.freeze = e.target.checked; frozenY = null; schedule(); });
-$('resetBtn').addEventListener('click', () => { stopPlay(); state.p = JSON.parse(JSON.stringify(DEF)); if (state.type === 's') { state.legs = buildPreset(state.preset !== 'custom' ? state.preset : 'straddle'); state.p.T = frontDays()/365; buildLegRows(); } frozenY = null; syncControls(); schedule(); });
+$('resetBtn').addEventListener('click', () => { stopPlay(); state.p = JSON.parse(JSON.stringify(DEF)); frozenY = null; syncControls(); schedule(); });
 
 // play: time decay from current T down to 1 day
 let playTimer = null;
@@ -401,13 +301,12 @@ $('playBtn').addEventListener('click', () => {
 // ---------------- math helpers ----------------
 function val(g, p, t){
   const sc = state.units ? GBY[g].sc : 1;
-  if (t === 's') return state.legs.reduce((a, l) => a + legRaw(l, g, p), 0) * sc;
   return bsm(p)[t][g] * sc;
 }
 function range(k){
   const p = state.p;
   switch(k){
-    case 'S': { let Kr = p.K; if (state.type === 's') { const ks = optLegs().map(l=>l.K); if (ks.length) { const lo = Math.min(...ks), hi = Math.max(...ks); return [Math.min(0.6*lo, 0.8*p.S), Math.max(1.4*hi, 1.2*p.S)]; } } return [Math.min(0.4*Kr, 0.8*p.S), Math.max(1.6*Kr, 1.2*p.S)]; }
+    case 'S': return [Math.min(0.4*p.K, 0.8*p.S), Math.max(1.6*p.K, 1.2*p.S)];
     case 'K': return [Math.min(0.4*p.S, 0.8*p.K), Math.max(1.6*p.S, 1.2*p.K)];
     case 'T': return [1/365, Math.max(2, 1.25*p.T)];
     case 'sig': return [0.02, Math.max(1, 1.25*p.sig)];
@@ -461,13 +360,13 @@ function curveTraces(g, xk, n, th, small){
   types.forEach(t => {
     const base = t === 'p' ? th.put : th.call;
     const ramp = t === 'p' ? th.rampP : th.rampC;
-    const tname = t === 'c' ? 'Call' : t === 'p' ? 'Put' : 'Position';
+    const tname = t === 'c' ? 'Call' : 'Put';
     const sets = ovVals ? ovVals.map((v,i)=>({v,i})) : [{v:null,i:2}];
     sets.forEach(({v,i}) => {
       const ys = xs.map(x => { const p = Object.assign({}, state.p, {[xk]:x}); if (v!==null) p[ov] = v; return val(g, p, t); });
       const cur = v === null || i === 2;
       const label = v === null ? tname : `${types.length>1?tname+' · ':''}${PARAMS[ov].sym} = ${fmtParam(ov, v)}`;
-      traces.push({x:xs, y:ys, type:'scatter', mode:'lines', name:label, showlegend: !small && (types.length>1 || !!ovVals || t === 's'),
+      traces.push({x:xs, y:ys, type:'scatter', mode:'lines', name:label, showlegend: !small && (types.length>1 || !!ovVals),
         line:{color: ovVals ? ramp[i] : base, width: small ? 1.6 : (cur ? 2.6 : 1.6)},
         hovertemplate: `${label}<br>${PARAMS[xk].sym} = %{x${PCT[xk]?':.2%':':.4g'}}<br>${GBY[g].n} = %{y:.5g}<extra></extra>`});
     });
@@ -477,22 +376,6 @@ function curveTraces(g, xk, n, th, small){
       marker:{size: small ? 7 : 10, color:base, line:{color:th.panel, width:2}},
       hovertemplate:`Current ${tname}<br>${PARAMS[xk].sym} = %{x${PCT[xk]?':.2%':':.4g'}}<br>${GBY[g].n} = %{y:.5g}<extra></extra>`});
   });
-  if (state.type === 's' && !small){
-    const cols = catColors();
-    const fmtx = `%{x${PCT[xk]?':.2%':':.4g'}}`;
-    if (state.showLegs && state.legs.length > 1 && g !== 'price') state.legs.forEach((l, i) => {
-      const ys = xs.map(x => legRaw(l, g, Object.assign({}, state.p, {[xk]:x})) * (state.units ? GBY[g].sc : 1));
-      traces.push({x:xs, y:ys, type:'scatter', mode:'lines', name:legLabel(l), line:{color:cols[i % cols.length], width:1.3, dash:'dash'},
-        hovertemplate:`${legLabel(l)}<br>${PARAMS[xk].sym} = ${fmtx}<br>%{y:.5g}<extra></extra>`});
-    });
-    if (g === 'price' && xk === 'S'){
-      const ys = xs.map(x => val('price', Object.assign({}, state.p, {S:x, T:1e-6}), 's'));
-      traces.push({x:xs, y:ys, type:'scatter', mode:'lines', name:'At front expiry', line:{color:th.ink, width:1.6, dash:'dot'},
-        hovertemplate:`At front expiry<br>S = %{x:.4g}<br>Value = %{y:.5g}<extra></extra>`});
-      const entry = val('price', state.p, 's');
-      traces.push({x:[xs[0], xs[xs.length-1]], y:[entry, entry], type:'scatter', mode:'lines', name:'Cost today (P&L = 0)', line:{color:th.muted, width:1}, hoverinfo:'skip'});
-    }
-  }
   return traces;
 }
 function renderCurve(th){
@@ -502,20 +385,18 @@ function renderCurve(th){
     xaxis: axis(th, AXLABEL[xk], PCT[xk]),
     yaxis: Object.assign(axis(th, `${GBY[g].n} (${unitOf(g)})`), {}),
     legend:{orientation:'h', y:1.02, yanchor:'bottom', x:0, font:{color:th.ink2, size:12}, bgcolor:'rgba(0,0,0,0)'},
-    margin:{l:64,r:16,t: (state.type==='b'||state.type==='s'||state.ov!=='none') ? 44 : 10, b:48},
+    margin:{l:64,r:16,t: (state.type==='b'||state.ov!=='none') ? 44 : 10, b:48},
     shapes:[{type:'line', xref:'x', yref:'paper', x0:state.p[xk], x1:state.p[xk], y0:0, y1:1, line:{color:th.muted, width:1, dash:'dot'}}],
     hovermode:'closest',
   });
   // strike marker when x is S, spot marker when x is K
   const ref = xk === 'S' ? state.p.K : xk === 'K' ? state.p.S : null;
-  if (state.type === 's') { layout.annotations = xk === 'S' ? [...new Set(optLegs().map(l=>l.K))].map(k => ({x:k, y:0, yref:'paper', xref:'x', text:'K', showarrow:false, yanchor:'bottom', font:{color:th.muted, size:11, family:'STIX Two Text, serif'}})) : []; }
-  else if (ref !== null) layout.annotations = [{x:ref, y:0, yref:'paper', xref:'x', text: xk==='S' ? 'K' : 'S', showarrow:false, yanchor:'bottom', font:{color:th.muted, size:11, family:'STIX Two Text, serif'}}];
+  if (ref !== null) layout.annotations = [{x:ref, y:0, yref:'paper', xref:'x', text: xk==='S' ? 'K' : 'S', showarrow:false, yanchor:'bottom', font:{color:th.muted, size:11, family:'STIX Two Text, serif'}}];
   if (state.freeze){
     if (!frozenY){ const all = traces.flatMap(t=>t.y).filter(isFinite); const lo = Math.min(...all), hi = Math.max(...all); const pad = (hi-lo)*0.08 || 1; frozenY = [lo-pad, hi+pad]; }
     layout.yaxis.range = frozenY; layout.yaxis.autorange = false;
   }
-  const pre = state.type === 's' ? `${PRESETS[state.preset] ? PRESETS[state.preset].n : 'Custom'}: position ` : '';
-  $('chartTitle').innerHTML = `${pre}${pre ? GBY[g].n.toLowerCase() : GBY[g].n} vs ${PARAMS[xk].name}<span class="d">${GBY[g].d}</span>`;
+  $('chartTitle').innerHTML = `${GBY[g].n} vs ${PARAMS[xk].name}<span class="d">${GBY[g].d}</span>`;
   $('chartHint').textContent = 'Dot = current inputs · dotted line = current ' + PARAMS[xk].sym + (state.ov!=='none' && state.ov!==xk ? ' · thick line = current ' + PARAMS[state.ov].sym : '');
   Plotly.react('curve', traces, layout, CFG);
 }
@@ -523,7 +404,7 @@ function renderCurve(th){
 // ---------------- surface / heatmap ----------------
 function renderSurface(th, heat){
   const g = state.greek, xk = state.x, yk = state.y;
-  const t = state.type === 's' ? 's' : state.type === 'p' ? 'p' : 'c';
+  const t = state.type === 'p' ? 'p' : 'c';
   const n = heat ? 90 : 56;
   const xs = linspace(...range(xk), n), ys = linspace(...range(yk), n);
   const z = ys.map(yv => xs.map(xv => { const p = Object.assign({}, state.p, {[xk]:xv, [yk]:yv}); return val(g, p, t); }));
@@ -539,7 +420,7 @@ function renderSurface(th, heat){
     hovertemplate:`${PARAMS[xk].sym} = %{x${PCT[xk]?':.2%':':.4g'}}<br>${PARAMS[yk].sym} = %{y${PCT[yk]?':.2%':':.4g'}}<br>${GBY[g].n} = %{z:.5g}<extra></extra>`};
   if (signed){ common.cmin = -lim; common.cmax = lim; common.zmin = -lim; common.zmax = lim; } else { common.cmin = qlo; common.cmax = qhi; common.zmin = qlo; common.zmax = qhi; }
   const cx = state.p[xk], cy = state.p[yk], cz = val(g, state.p, t);
-  const tlabel = t === 'c' ? 'Call' : t === 'p' ? 'Put' : 'Position';
+  const tlabel = t === 'c' ? 'Call' : 'Put';
   $('chartTitle').innerHTML = `${tlabel} ${GBY[g].n} over ${PARAMS[xk].sym} × ${PARAMS[yk].sym}<span class="d">${GBY[g].d}</span>`;
   $('chartHint').textContent = (state.type==='b' ? 'Showing the call (pick Put to switch). ' : '') + (heat ? 'Cross = current inputs. Color clipped to the 1st–99th percentile.' : 'Drag to rotate · scroll to zoom · dot = current inputs.');
   if (heat){
@@ -589,19 +470,6 @@ function renderTable(){
   $('d12').innerHTML = `<span style="font-family:var(--math)"><i>d</i><sub>1</sub> = ${R.d1.toFixed(4)} · <i>d</i><sub>2</sub> = ${R.d2.toFixed(4)}</span>`;
   const sc = k => state.units ? GBY[k].sc : 1;
   const thead = document.querySelector('.bottom table thead tr');
-  if (state.type === 's'){
-    const cols = catColors();
-    thead.innerHTML = `<th>Greek</th><th>Position</th>${state.legs.map((l,i)=>`<th title="${legLabel(l)}"><span class="sw" style="background:${cols[i%cols.length]}"></span>Leg ${i+1}</th>`).join('')}<th>Unit</th>`;
-    $('tbody').innerHTML = G.map(g => {
-      const parts = state.legs.map(l => legRaw(l, g.k, state.p) * sc(g.k)); const tot = parts.reduce((a,b)=>a+b, 0);
-      return `<tr data-k="${g.k}" class="${g.k===state.greek?'sel':''}"><td>${g.n}<span class="sym">${g.d}</span></td>
-        <td class="n${tot<0?' neg':''}"><b>${fmtNum(tot)}</b></td>${parts.map(v=>`<td class="n${v<0?' neg':''}">${fmtNum(v)}</td>`).join('')}<td class="u">${unitOf(g.k)}</td></tr>`;
-    }).join('');
-    state.legs.forEach((l,i) => { const up = l.type==='s' ? state.p.S : legRaw(Object.assign({}, l, {qty:1}), 'price', state.p); const e1 = $('lp-'+i), e2 = $('lv-'+i); if (e1) e1.textContent = fmtNum(up); if (e2) e2.textContent = fmtNum(up * l.qty); });
-    const net = val('price', Object.assign({}, state.p), 's') / (state.units ? GBY.price.sc : 1);
-    $('netHint').textContent = net >= 0 ? `Net debit ${net.toFixed(2)} (you pay)` : `Net credit ${(-net).toFixed(2)} (you receive)`;
-    return;
-  }
   thead.innerHTML = '<th>Greek</th><th>Call</th><th>Put</th><th>Unit</th>';
   $('tbody').innerHTML = G.map(g => {
     const c = R.c[g.k]*sc(g.k), p = R.p[g.k]*sc(g.k);
@@ -613,7 +481,7 @@ $('tbody').addEventListener('click', e => { const tr = e.target.closest('tr'); i
 
 function renderFormula(){
   const g = GBY[state.greek];
-  const lines = (state.type === 's' ? `<div><span class="lab">Book</span>${g.n}<sub>position</sub> = Σ<sub><i>i</i></sub> <i>q<sub>i</sub></i> · ${g.n}(<i>K<sub>i</sub></i>, <i>T<sub>i</sub></i>) &nbsp;<span style="font-family:var(--sans);font-size:12px;color:var(--muted)">(stock leg: Δ = 1, others 0)</span></div>` : '') +
+  const lines =
     (g.f.b ? `<div><span class="lab">C & P</span>${g.f.b}</div>` : `<div><span class="lab">Call</span>${g.f.c}</div><div><span class="lab">Put</span>${g.f.p}</div>`);
   const scaleNote = state.units && g.sc !== 1 ? `<p class="note">Trader units: raw formula × ${g.sc === 0.01 ? '1/100' : g.sc === 1/365 ? '1/365' : g.sc === 1e-4 ? '1/10,000' : g.sc === 1e-6 ? '1/1,000,000' : '1/(100·365)'}.</p>` : '';
   const signNote = (g.k==='veta'||g.k==='color') ? `<p class="note">Sign: shown as ∂/∂t (calendar decay), consistent with theta and charm. Wikipedia states veta and color as ∂/∂τ, which flips the sign (自己推理, checked numerically by finite differences).</p>` : '';
@@ -625,7 +493,7 @@ function renderFormula(){
     <ul class="vars">
       <li><b>S</b> spot price</li><li><b>K</b> strike</li><li><b>T</b> time to expiry (years)</li>
       <li><b>σ</b> annualized volatility</li><li><b>r</b> continuous risk-free rate</li><li><b>q</b> continuous dividend yield</li>
-      <li><b>N(·)</b> standard normal CDF</li>${state.type === 's' ? '<li><b>q<sub>i</sub></b> signed quantity of leg <i>i</i> (not the dividend yield)</li>' : ''}<li><b>n(·)</b> standard normal PDF</li><li><b>ν</b> vega, <b>Γ</b> gamma</li>
+      <li><b>N(·)</b> standard normal CDF</li><li><b>n(·)</b> standard normal PDF</li><li><b>ν</b> vega, <b>Γ</b> gamma</li>
     </ul>
     ${scaleNote}${signNote}
     <p class="intuit">${g.why}</p>
@@ -648,7 +516,7 @@ function render(){
 new MutationObserver(() => schedule()).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
 try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => schedule()); } catch(e){}
 
-buildLegRows(); syncControls(); render();
+syncControls(); render();
 }
 </script>
 
